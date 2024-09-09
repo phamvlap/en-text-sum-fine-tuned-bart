@@ -1,18 +1,21 @@
+import shutil
+
 from torch.utils.data import Dataset
 from pathlib import Path
 from typing import Generator
 
-from tokenizers import Tokenizer
+from tokenizers import Tokenizer, ByteLevelBPETokenizer
 from tokenizers.normalizers import Sequence, Lowercase, Normalizer
 from tokenizers.pre_tokenizers import Whitespace, PreTokenizer
 from tokenizers.models import WordLevel, BPE, WordPiece, Model
 from tokenizers.trainers import WordLevelTrainer, BpeTrainer, WordPieceTrainer, Trainer
 
+from transformers import BartTokenizer
+
 from bart.constants import TokenizerType, SpecialToken
-from utils.mix import make_dir
 
 
-class HuggingfaceAPITokenizer:
+class CustomBartTokenizer:
     def __init__(
         self,
         dataset: Dataset,
@@ -31,16 +34,36 @@ class HuggingfaceAPITokenizer:
         for item in dataset:
             yield item
 
-    def train(self) -> Tokenizer:
-        normalizer, pre_tokenizer, model, trainer = self.__setup_tokenizer()
+    def train(self) -> BartTokenizer:
+        if self.model_type == TokenizerType.BYTE_LEVEL_BPE:
+            tokenizer = ByteLevelBPETokenizer()
+            tokenizer.train_from_iterator(
+                self.dataset,
+                vocab_size=self.vocab_size,
+                min_frequency=self.min_freq,
+                special_tokens=self.special_tokens,
+            )
+        else:
+            normalizer, pre_tokenizer, model, trainer = self.__setup_tokenizer()
 
-        tokenizer = Tokenizer(model)
-        tokenizer.normalizer = normalizer
-        tokenizer.pre_tokenizer = pre_tokenizer
+            tokenizer = Tokenizer(model)
+            tokenizer.normalizer = normalizer
+            tokenizer.pre_tokenizer = pre_tokenizer
 
-        tokenizer.train_from_iterator(iterator=self.dataset, trainer=trainer)
+            tokenizer.train_from_iterator(iterator=self.dataset, trainer=trainer)
 
-        return tokenizer
+        tmp_tokenizer_dir = "tmp-tokenizer"
+        Path(tmp_tokenizer_dir).mkdir(parents=True, exist_ok=True)
+
+        tokenizer.model.save(tmp_tokenizer_dir)
+        bart_tokenizer = BartTokenizer(
+            vocab_file=f"{tmp_tokenizer_dir}/vocab.json",
+            merges_file=f"{tmp_tokenizer_dir}/merges.txt",
+        )
+
+        shutil.rmtree(tmp_tokenizer_dir)
+
+        return bart_tokenizer
 
     def __setup_tokenizer(self) -> tuple[Normalizer, PreTokenizer, Model, Trainer]:
         if self.model_type == TokenizerType.WORD_LEVEL:
@@ -77,14 +100,17 @@ class HuggingfaceAPITokenizer:
         return normalizer, pre_tokenizer, model, trainer
 
 
-def load_tokenizer(tokenizer_path: str) -> Tokenizer:
-    if not Path(tokenizer_path).exists():
-        raise ValueError(f"Tokenizer path {tokenizer_path} not found.")
-    tokenizer = Tokenizer.from_file(tokenizer_path)
-    return tokenizer
+def load_tokenizer(bart_tokenizer_dir: str) -> BartTokenizer:
+    if not Path(bart_tokenizer_dir).exists():
+        raise ValueError(f"Tokenizer path {bart_tokenizer_dir} not found.")
+
+    bart_tokenizer = BartTokenizer.from_pretrained(str(bart_tokenizer_dir))
+
+    return bart_tokenizer
 
 
-def save_tokenizer(tokenizer: Tokenizer, tokenizer_path: str) -> None:
-    tokenizer_dir = tokenizer_path.rsplit("/", 1)[0]
-    make_dir(tokenizer_dir)
-    tokenizer.save(tokenizer_path)
+def save_tokenizer(
+    bart_tokenizer: BartTokenizer,
+    bart_tokenizer_dir: str | Path,
+) -> None:
+    bart_tokenizer.save_pretrained(save_directory=str(bart_tokenizer_dir))

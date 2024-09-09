@@ -2,8 +2,9 @@ from pathlib import Path
 from torch.utils.data import Dataset
 from tokenizers import Tokenizer
 
+from transformers import BartTokenizer
 
-from .tokenizer import HuggingfaceAPITokenizer, save_tokenizer
+from .tokenizer import CustomBartTokenizer, save_tokenizer
 
 
 def train_tokenizer(
@@ -12,9 +13,9 @@ def train_tokenizer(
     special_tokens: list[str],
     min_freq: int,
     model_type: str,
-    tokenizer_path: str | Path,
-) -> Tokenizer:
-    tokenizer = HuggingfaceAPITokenizer(
+    bart_tokenizer_path: str | Path,
+) -> BartTokenizer:
+    bart_tokenizer = CustomBartTokenizer(
         dataset=dataset,
         vocab_size=vocab_size,
         special_tokens=special_tokens,
@@ -22,10 +23,11 @@ def train_tokenizer(
         model_type=model_type,
     )
 
-    tokenizer = tokenizer.train()
+    bart_tokenizer = bart_tokenizer.train()
+
     save_tokenizer(
-        tokenizer=tokenizer,
-        tokenizer_path=tokenizer_path,
+        bart_tokenizer=bart_tokenizer,
+        bart_tokenizer_dir=bart_tokenizer_path,
     )
 
-    return tokenizer
+    return bart_tokenizer

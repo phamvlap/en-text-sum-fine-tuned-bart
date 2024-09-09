@@ -22,7 +22,8 @@ def get_config() -> dict:
     config["text_tgt"] = "summary"
 
     # Tokenizer configs
-    config["tokenizer_dir"] = "tokenzier"
+    config["tokenizer_dir"] = "tokenizer"
+    config["tokenizer_bart_dir"] = "tokenizer-bart"
     config["special_tokens"] = [
         SpecialToken.BOS,
         SpecialToken.EOS,
