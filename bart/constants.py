@@ -12,3 +12,9 @@ class TokenId:
     PAD = 2
     UNK = 3
     MASK = 4
+
+
+class TokenizerType:
+    WORD_LEVEL = "word_level"
+    BPE = "bpe"
+    WORD_PIECE = "word_piece"

@@ -4,28 +4,10 @@ import torch
 from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
-from tokenizers import ByteLevelBPETokenizer
+from tokenizers import Tokenizer
 
 from bart.constants import SpecialToken
-
-
-def load_tokenizer(config: dict) -> ByteLevelBPETokenizer:
-    vocab_file = Path(config["tokenizer_dir"], "vocab.json")
-    merges_file = Path(config["tokenizer_dir"], "merges.txt")
-
-    if not vocab_file.exists() or not merges_file.exists():
-        raise FileNotFoundError("Tokenizer files not found")
-
-    tokenizer = ByteLevelBPETokenizer()
-
-    tokenizer = tokenizer.from_file(
-        vocab_file=str(vocab_file),
-        merges_file=str(merges_file),
-    )
-
-    tokenizer.add_special_tokens(config["special_tokens"])
-
-    return tokenizer
+from summarization.tokenizer import load_tokenizer
 
 
 def load_dataset(path: str) -> pd.DataFrame:
@@ -38,16 +20,18 @@ class SummarizationDataset(Dataset):
     def __init__(
         self,
         df: pd.DataFrame,
-        tokenizer: ByteLevelBPETokenizer,
+        tokenizer_src: Tokenizer,
+        tokenizer_tgt: Tokenizer,
         config: dict,
     ) -> None:
         super().__init__()
         self.df = df
-        self.tokenizer = tokenizer
+        self.tokenizer_src = tokenizer_src
+        self.tokenizer_tgt = tokenizer_tgt
         self.text_src = config["text_src"]
         self.text_tgt = config["text_tgt"]
-        self.bos_token_id = self.tokenizer.token_to_id(SpecialToken.BOS)
-        self.eos_token_id = self.tokenizer.token_to_id(SpecialToken.EOS)
+        self.bos_token_id = self.tokenizer_src.token_to_id(SpecialToken.BOS)
+        self.eos_token_id = self.tokenizer_src.token_to_id(SpecialToken.EOS)
 
     def __len__(self) -> int:
         return len(self.df)
@@ -60,11 +44,11 @@ class SummarizationDataset(Dataset):
 
         src_tokens = (
             [self.bos_token_id]
-            + self.tokenzier.encode(text_src).ids
+            + self.tokenizer_src.encode(text_src).ids
             + [self.eos_token_id]
         )
-        tgt_tokens = [self.bos_token_id] + self.tokenizer.encode(text_tgt).ids
-        label = self.tokenizer.encode(text_tgt).ids + [self.eos_token_id]
+        tgt_tokens = [self.bos_token_id] + self.tokenizer_tgt.encode(text_tgt).ids
+        label = self.tokenizer_tgt.encode(text_tgt).ids + [self.eos_token_id]
 
         return {
             "src": src_tokens,
@@ -73,8 +57,8 @@ class SummarizationDataset(Dataset):
         }
 
 
-def collate_fn(batch: list, tokenizer: ByteLevelBPETokenizer) -> dict:
-    pad_token_id = tokenizer.token_to_id(SpecialToken.PAD)
+def collate_fn(batch: list, tokenizer_src: Tokenizer) -> dict:
+    pad_token_id = tokenizer_src.token_to_id(SpecialToken.PAD)
 
     src_batch, tgt_batch, label_batch = [], [], []
     for item in batch:
@@ -110,7 +94,8 @@ def collate_fn(batch: list, tokenizer: ByteLevelBPETokenizer) -> dict:
 
 
 def get_dataloader(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
-    tokenizer = load_tokenizer(config)
+    tokenizer_src = load_tokenizer(config["tokenizer_src_path"])
+    tokenizer_tgt = load_tokenizer(config["tokenizer_tgt_path"])
 
     train_ds = load_dataset(path=config["train_ds_path"])
     val_ds = load_dataset(path=config["val_ds_path"])
@@ -122,17 +107,20 @@ def get_dataloader(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
 
     train_dataset = SummarizationDataset(
         df=train_ds,
-        tokenizer=tokenizer,
+        tokenizer_src=tokenizer_src,
+        tokenizer_tgt=tokenizer_tgt,
         config=config,
     )
     val_dataset = SummarizationDataset(
         df=val_ds,
-        tokenizer=tokenizer,
+        tokenizer_src=tokenizer_src,
+        tokenizer_tgt=tokenizer_tgt,
         config=config,
     )
     test_dataset = SummarizationDataset(
         df=test_ds,
-        tokenizer=tokenizer,
+        tokenizer_src=tokenizer_src,
+        tokenizer_tgt=tokenizer_tgt,
         config=config,
     )
 
@@ -140,19 +128,19 @@ def get_dataloader(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
         dataset=train_dataset,
         batch_size=batch_size_train,
         shuffle=True,
-        collate_fn=lambda batch: collate_fn(batch=batch, tokenizer=tokenizer),
+        collate_fn=lambda batch: collate_fn(batch=batch, tokenizer_src=tokenizer_src),
     )
     val_dataloader = DataLoader(
         dataset=val_dataset,
         batch_size=batch_size_val,
         shuffle=True,
-        collate_fn=lambda batch: collate_fn(batch=batch, tokenizer=tokenizer),
+        collate_fn=lambda batch: collate_fn(batch=batch, tokenizer_src=tokenizer_src),
     )
     test_dataloader = DataLoader(
         dataset=test_dataset,
         batch_size=batch_size_test,
         shuffle=True,
-        collate_fn=lambda batch: collate_fn(batch=batch, tokenizer=tokenizer),
+        collate_fn=lambda batch: collate_fn(batch=batch, tokenizer_src=tokenizer_src),
     )
 
     return (

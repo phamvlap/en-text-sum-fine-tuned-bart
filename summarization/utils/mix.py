@@ -12,6 +12,10 @@ def set_seed(seed: int) -> None:
     torch.cuda.manual_seed_all(seed)
 
 
+def make_dir(dir_path: str) -> None:
+    Path(dir_path).mkdir(parents=True, exist_ok=True)
+
+
 def make_dirs(config: dict, dir_names: list[str]) -> None:
     for dir_name in dir_names:
         dir_path = config[dir_name]

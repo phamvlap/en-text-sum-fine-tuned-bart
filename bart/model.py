@@ -1,11 +1,11 @@
 import torch.nn as nn
 
 from torch import Tensor
-from tokenizers import ByteLevelBPETokenizer
+from tokenizers import Tokenizer
 from transformers import BartConfig, BartModel
 
 
-def get_bart_config(config: dict, tokenizer: ByteLevelBPETokenizer) -> BartConfig:
+def get_bart_config(config: dict, tokenizer: Tokenizer) -> BartConfig:
     bart_config = BartConfig(
         vocab_size=tokenizer.get_vocab_size(),
         d_model=config["d_model"],
@@ -30,7 +30,7 @@ def get_bart_config(config: dict, tokenizer: ByteLevelBPETokenizer) -> BartConfi
 
 
 class FinetuneBartModel(nn.Module):
-    def __init__(self, config: BartConfig, tokenizer: ByteLevelBPETokenizer) -> None:
+    def __init__(self, config: BartConfig, tokenizer: Tokenizer) -> None:
         super().__init__()
         self.bart_model = BartModel(config)
         self.proj = nn.Linear(config.d_model, tokenizer.get_vocab_size())
@@ -45,7 +45,7 @@ class FinetuneBartModel(nn.Module):
 
 def build_bart_model(
     config: dict,
-    tokenizer: ByteLevelBPETokenizer,
+    tokenizer: Tokenizer,
 ) -> FinetuneBartModel:
     bart_config = get_bart_config(config, tokenizer)
     bart_model = FinetuneBartModel(bart_config, tokenizer)

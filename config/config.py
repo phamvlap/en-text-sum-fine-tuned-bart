@@ -30,6 +30,12 @@ def get_config() -> dict:
         SpecialToken.MASK,
         SpecialToken.UNK,
     ]
+    config["vocab_size_src"] = 30000
+    config["vocab_size_tgt"] = 30000
+    config["min_freq"] = 2
+    config["model_type"] = "bpe"
+    config["tokenizer_src_path"] = Path(config["tokenizer_dir"], "tokenizer_src.json")
+    config["tokenizer_tgt_path"] = Path(config["tokenizer_dir"], "tokenizer_tgt.json")
 
     # Dataloader configs
     config["batch_size_train"] = 16
