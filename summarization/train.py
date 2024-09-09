@@ -19,7 +19,7 @@ from .tokenizer import load_tokenizer
 def save_model(
     model_filepath: str,
     model: nn.Module,
-    optimizer: optim.optimizer.Optimizer,
+    optimizer: optim.Optimizer,
     epoch: int,
     global_step: int,
 ) -> None:
@@ -40,8 +40,6 @@ def train(config: dict) -> None:
         config=config,
         dir_names=[
             "model_dir",
-            "dataset_dir",
-            "tokenizer_dir",
         ],
     )
 
@@ -52,12 +50,12 @@ def train(config: dict) -> None:
     device = config["device"]
 
     # Load tokenizer
-    tokenizer_src = load_tokenizer(tokenizer_path=config["tokenizer_src_path"])
+    tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
 
     # Build BART model
     bart_model = build_bart_model(
         config=config,
-        tokenizer=tokenizer_src,
+        tokenizer=tokenizer,
     ).to(device=device)
 
     # Get dataloaders
@@ -71,7 +69,7 @@ def train(config: dict) -> None:
     )
 
     # Loss function
-    pad_token_id = tokenizer_src.token_to_id(SpecialToken.PAD)
+    pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
     loss_fn = nn.CrossEntropyLoss(
         ignore_index=pad_token_id,
         label_smoothing=config["label_smoothing"],
