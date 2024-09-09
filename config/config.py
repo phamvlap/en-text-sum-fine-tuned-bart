@@ -1,7 +1,7 @@
 import torch
 from pathlib import Path
 
-from bart.constants import TokenId, SpecialToken
+from bart.constants import SpecialToken
 
 
 def get_config() -> dict:
@@ -9,7 +9,7 @@ def get_config() -> dict:
 
     # General configs
     config["seed"] = 42
-    config["max_length"] = 512
+    config["max_length"] = 1024
     config["model_dir"] = "models"
     config["model_basename"] = "bart_model_"
 
@@ -55,7 +55,7 @@ def get_config() -> dict:
     config["preload"] = "latest"
 
     # BART configs
-    config["d_model"] = 768
+    config["d_model"] = 1024
     config["encoder_layers"] = 6
     config["decoder_layers"] = 6
     config["encoder_attention_heads"] = 8
@@ -68,9 +68,6 @@ def get_config() -> dict:
     config["init_std"] = 0.02
     config["scale_embedding"] = True
     config["num_beams"] = 4
-    config["bos_token_id"] = TokenId.BOS
-    config["pad_token_id"] = TokenId.PAD
-    config["eos_token_id"] = TokenId.EOS
 
     # Device
     config["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
