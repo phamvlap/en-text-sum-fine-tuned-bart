@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from bart.model import build_bart_model
 from bart.constants import SpecialToken
-from dataset.summarization_dataset import get_dataloader
+from .summarization_dataset import get_dataloader
 from .utils.mix import (
     set_seed,
     make_dirs,
