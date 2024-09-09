@@ -1,13 +1,12 @@
 import torch.nn as nn
 
 from torch import Tensor
-from tokenizers import Tokenizer
-from transformers import BartConfig, BartModel
+from transformers import BartConfig, BartModel, BartTokenizer
 
 
-def get_bart_config(config: dict, tokenizer: Tokenizer) -> BartConfig:
+def get_bart_config(config: dict, tokenizer: BartTokenizer) -> BartConfig:
     bart_config = BartConfig(
-        vocab_size=tokenizer.get_vocab_size(),
+        vocab_size=tokenizer.vocab_size,
         d_model=config["d_model"],
         encoder_layers=config["encoder_layers"],
         decoder_layers=config["decoder_layers"],
@@ -30,10 +29,10 @@ def get_bart_config(config: dict, tokenizer: Tokenizer) -> BartConfig:
 
 
 class FinetuneBartModel(nn.Module):
-    def __init__(self, config: BartConfig, tokenizer: Tokenizer) -> None:
+    def __init__(self, config: BartConfig, tokenizer: BartTokenizer) -> None:
         super().__init__()
         self.bart_model = BartModel(config)
-        self.proj = nn.Linear(config.d_model, tokenizer.get_vocab_size())
+        self.proj = nn.Linear(config.d_model, tokenizer.vocab_size)
 
     def forward(self, **kwargs) -> Tensor:
         # output.last_hidden_state (batch_size, seq_len, d_model)
@@ -45,8 +44,8 @@ class FinetuneBartModel(nn.Module):
 
 def build_bart_model(
     config: dict,
-    tokenizer: Tokenizer,
+    tokenizer: BartTokenizer,
 ) -> FinetuneBartModel:
-    bart_config = get_bart_config(config, tokenizer)
-    bart_model = FinetuneBartModel(bart_config, tokenizer)
+    bart_config = get_bart_config(config=config, tokenizer=tokenizer)
+    bart_model = FinetuneBartModel(config=bart_config, tokenizer=tokenizer)
     return bart_model
