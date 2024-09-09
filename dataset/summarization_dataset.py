@@ -42,12 +42,10 @@ class SummarizationDataset(Dataset):
         text_tgt = row[self.text_tgt]
 
         src_tokens = (
-            [self.bos_token_id]
-            + self.tokenizer_src.encode(text_src)
-            + [self.eos_token_id]
+            [self.bos_token_id] + self.tokenizer.encode(text_src) + [self.eos_token_id]
         )
-        tgt_tokens = [self.bos_token_id] + self.tokenizer_tgt.encode(text_tgt)
-        label = self.tokenizer_tgt.encode(text_tgt) + [self.eos_token_id]
+        tgt_tokens = [self.bos_token_id] + self.tokenizer.encode(text_tgt)
+        label = self.tokenizer.encode(text_tgt) + [self.eos_token_id]
 
         return {
             "src": src_tokens,
