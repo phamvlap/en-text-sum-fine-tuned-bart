@@ -3,6 +3,8 @@ import torch.nn as nn
 from torch import Tensor
 from transformers import BartConfig, BartModel, BartTokenizer
 
+from .constants import SpecialToken
+
 
 def get_bart_config(config: dict, tokenizer: BartTokenizer) -> BartConfig:
     bart_config = BartConfig(
@@ -20,9 +22,9 @@ def get_bart_config(config: dict, tokenizer: BartTokenizer) -> BartConfig:
         init_std=config["init_std"],
         scale_embedding=config["scale_embedding"],
         num_beams=config["num_beams"],
-        bos_token_id=config["bos_token_id"],
-        pad_token_id=config["pad_token_id"],
-        eos_token_id=config["eos_token_id"],
+        bos_token_id=tokenizer.convert_tokens_to_ids(SpecialToken.BOS),
+        pad_token_id=tokenizer.convert_tokens_to_ids(SpecialToken.PAD),
+        eos_token_id=tokenizer.convert_tokens_to_ids(SpecialToken.EOS),
     )
 
     return bart_config
