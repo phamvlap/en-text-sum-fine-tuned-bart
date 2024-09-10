@@ -1,7 +1,9 @@
+import json
 import torch
 import torch.optim as optim
 import torch.nn as nn
 
+from pathlib import Path
 from tqdm import tqdm
 
 from bart.model import build_bart_model
@@ -34,6 +36,15 @@ def save_model(
     )
 
 
+def save_model_config(config: dict, epoch: int) -> None:
+    filepath = config["model_dir"] + "/" + config["model_config_file"].format(epoch)
+    for key, value in config.items():
+        if isinstance(value, Path):
+            config[key] = str(value)
+    with open(filepath, "w") as f:
+        json.dump(config, f, indent=4)
+
+
 def train(config: dict) -> None:
     # Make directories
     make_dirs(
@@ -43,11 +54,15 @@ def train(config: dict) -> None:
         ],
     )
 
+    # Device
+    device = torch.device(config["device"])
+    if torch.cuda.is_available():
+        print(f"Using GPU: {torch.cuda.get_device_name()}")
+    else:
+        print("Using CPU")
+
     # Set seed
     set_seed(seed=config["seed"])
-
-    # Device
-    device = config["device"]
 
     # Load tokenizer
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
@@ -134,13 +149,17 @@ def train(config: dict) -> None:
             # Compute loss
             loss = loss_fn(logits.view(-1, logits.size(-1)), label.view(-1))
             train_losses.append(loss.item())
-            batch_iterator.set_postfix(f"loss: {loss.item():.4f}")
-
-            optimizer.zero_grad(set_to_none=True)
+            batch_iterator.set_postfix(
+                {
+                    "loss": f"{loss.item():.4f}",
+                }
+            )
 
             loss.backward()
 
             optimizer.step()
+            optimizer.zero_grad(set_to_none=True)
+
             global_step += 1
 
         with torch.no_grad():
@@ -171,7 +190,11 @@ def train(config: dict) -> None:
 
                 loss = loss_fn(logits.view(-1, logits.size(-1)), label.view(-1))
                 val_losses.append(loss.item())
-                batch_iterator.set_postfix(f"loss: {loss.item():.4f}")
+                batch_iterator.set_postfix(
+                    {
+                        "loss": f"{loss.item():.4f}",
+                    }
+                )
 
         # Save model
         save_model(
@@ -181,3 +204,4 @@ def train(config: dict) -> None:
             epoch=epoch,
             global_step=global_step,
         )
+        save_model_config(config=config, epoch=epoch)

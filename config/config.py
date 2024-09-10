@@ -12,6 +12,7 @@ def get_config() -> dict:
     config["max_length"] = 1024
     config["model_dir"] = "models"
     config["model_basename"] = "bart_model_"
+    config["model_config_file"] = "model_config_{0}.json"
 
     # Dataset configs
     config["dataset_dir"] = "data"
