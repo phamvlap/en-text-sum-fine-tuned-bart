@@ -1,4 +1,5 @@
 import shutil
+import pandas as pd
 
 from torch.utils.data import Dataset
 from pathlib import Path
@@ -18,7 +19,7 @@ from bart.constants import TokenizerType, SpecialToken
 class CustomBartTokenizer:
     def __init__(
         self,
-        dataset: Dataset,
+        dataset: Dataset | pd.DataFrame,
         vocab_size: int,
         special_tokens: list[str],
         min_freq: int,
@@ -34,7 +35,7 @@ class CustomBartTokenizer:
         for item in dataset:
             yield item
 
-    def train(self) -> BartTokenizer:
+    def train(self, config: dict, show_progress: bool = False) -> BartTokenizer:
         if self.model_type == TokenizerType.BYTE_LEVEL_BPE:
             tokenizer = ByteLevelBPETokenizer()
             tokenizer.train_from_iterator(
@@ -42,9 +43,12 @@ class CustomBartTokenizer:
                 vocab_size=self.vocab_size,
                 min_frequency=self.min_freq,
                 special_tokens=self.special_tokens,
+                show_progress=show_progress,
             )
         else:
-            normalizer, pre_tokenizer, model, trainer = self.__setup_tokenizer()
+            normalizer, pre_tokenizer, model, trainer = self.__setup_tokenizer(
+                show_progress=show_progress,
+            )
 
             tokenizer = Tokenizer(model)
             tokenizer.normalizer = normalizer
@@ -52,20 +56,25 @@ class CustomBartTokenizer:
 
             tokenizer.train_from_iterator(iterator=self.dataset, trainer=trainer)
 
-        tmp_tokenizer_dir = "tmp-tokenizer"
+        tmp_tokenizer_dir = config["tokenizer_tmp_dir"]
         Path(tmp_tokenizer_dir).mkdir(parents=True, exist_ok=True)
 
         tokenizer.model.save(tmp_tokenizer_dir)
+
         bart_tokenizer = BartTokenizer(
-            vocab_file=f"{tmp_tokenizer_dir}/vocab.json",
-            merges_file=f"{tmp_tokenizer_dir}/merges.txt",
+            vocab_file=f"{tmp_tokenizer_dir}/{config['tokenizer_vocab_file']}",
+            merges_file=f"{tmp_tokenizer_dir}/{config['tokenizer_merges_file']}",
         )
 
-        shutil.rmtree(tmp_tokenizer_dir)
+        if Path(tmp_tokenizer_dir).exists():
+            shutil.rmtree(tmp_tokenizer_dir)
 
         return bart_tokenizer
 
-    def __setup_tokenizer(self) -> tuple[Normalizer, PreTokenizer, Model, Trainer]:
+    def __setup_tokenizer(
+        self,
+        show_progress: bool = False,
+    ) -> tuple[Normalizer, PreTokenizer, Model, Trainer]:
         if self.model_type == TokenizerType.WORD_LEVEL:
             normalizer = Sequence([Lowercase()])
             pre_tokenizer = Whitespace()
@@ -75,6 +84,7 @@ class CustomBartTokenizer:
                 vocab_size=self.vocab_size,
                 min_frequency=self.min_freq,
                 special_tokens=self.special_tokens,
+                show_progress=show_progress,
             )
         elif self.model_type == TokenizerType.BPE:
             normalizer = Sequence([Lowercase()])
@@ -85,6 +95,7 @@ class CustomBartTokenizer:
                 vocab_size=self.vocab_size,
                 min_frequency=self.min_freq,
                 special_tokens=self.special_tokens,
+                show_progress=show_progress,
             )
         elif self.model_type == TokenizerType.WORD_PIECE:
             normalizer = Sequence([Lowercase()])
@@ -95,6 +106,7 @@ class CustomBartTokenizer:
                 vocab_size=self.vocab_size,
                 min_frequency=self.min_freq,
                 special_tokens=self.special_tokens,
+                show_progress=show_progress,
             )
 
         return normalizer, pre_tokenizer, model, trainer

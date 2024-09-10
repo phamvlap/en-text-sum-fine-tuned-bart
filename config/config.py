@@ -24,6 +24,9 @@ def get_config() -> dict:
     # Tokenizer configs
     config["tokenizer_dir"] = "tokenizer"
     config["tokenizer_bart_dir"] = "tokenizer-bart"
+    config["tokenizer_tmp_dir"] = "tokenizer-tmp"
+    config["tokenizer_vocab_file"] = "vocab.json"
+    config["tokenizer_merges_file"] = "merges.txt"
     config["special_tokens"] = [
         SpecialToken.BOS,
         SpecialToken.EOS,
@@ -31,12 +34,9 @@ def get_config() -> dict:
         SpecialToken.MASK,
         SpecialToken.UNK,
     ]
-    config["vocab_size_src"] = 30000
-    config["vocab_size_tgt"] = 30000
+    config["vocab_size"] = 30000
     config["min_freq"] = 2
     config["model_type"] = "bpe"
-    config["tokenizer_src_path"] = Path(config["tokenizer_dir"], "tokenizer_src.json")
-    config["tokenizer_tgt_path"] = Path(config["tokenizer_dir"], "tokenizer_tgt.json")
 
     # Dataloader configs
     config["batch_size_train"] = 16
@@ -70,6 +70,6 @@ def get_config() -> dict:
     config["num_beams"] = 4
 
     # Device
-    config["device"] = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    config["device"] = "cuda" if torch.cuda.is_available() else "cpu"
 
     return config
