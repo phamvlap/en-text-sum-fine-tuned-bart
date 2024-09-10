@@ -31,6 +31,7 @@ class SummarizationDataset(Dataset):
         self.text_tgt = config["text_tgt"]
         self.bos_token_id = self.tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
         self.eos_token_id = self.tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
+        self.max_sequence_length = config["max_sequence_length"]
 
     def __len__(self) -> int:
         return len(self.df)
@@ -46,6 +47,25 @@ class SummarizationDataset(Dataset):
         )
         tgt_tokens = [self.bos_token_id] + self.tokenizer.encode(text_tgt)
         label = self.tokenizer.encode(text_tgt) + [self.eos_token_id]
+
+        if len(src_tokens) > self.max_sequence_length:
+            src_tokens = src_tokens[: self.max_sequence_length - 1] + [
+                self.eos_token_id
+            ]
+        if len(tgt_tokens) > self.max_sequence_length:
+            tgt_tokens = tgt_tokens[: self.max_sequence_length]
+        if len(label) > self.max_sequence_length:
+            label = label[: self.max_sequence_length - 1] + [self.eos_token_id]
+
+        assert (
+            len(src_tokens) <= self.max_sequence_length
+        ), f"max sequence length = {self.max_sequence_length}"
+        assert (
+            len(tgt_tokens) <= self.max_sequence_length
+        ), f"max sequence length = {self.max_sequence_length}"
+        assert (
+            len(label) <= self.max_sequence_length
+        ), f"max sequence length = {self.max_sequence_length}"
 
         return {
             "src": src_tokens,

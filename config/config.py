@@ -9,7 +9,7 @@ def get_config() -> dict:
 
     # General configs
     config["seed"] = 42
-    config["max_length"] = 1024
+    config["max_sequence_length"] = 500
     config["model_dir"] = "models"
     config["model_basename"] = "bart_model_"
     config["model_config_file"] = "model_config_{0}.json"
@@ -65,7 +65,7 @@ def get_config() -> dict:
     config["decoder_ffn_dim"] = 2048
     config["activation_function"] = "relu"
     config["dropout"] = 0.1
-    config["max_position_embeddings"] = config["max_length"]
+    config["max_position_embeddings"] = config["max_sequence_length"]
     config["init_std"] = 0.02
     config["scale_embedding"] = True
     config["num_beams"] = 4
