@@ -123,7 +123,10 @@ def train(config: dict) -> None:
 
         # Train
         bart_model.train()
-        batch_iterator = tqdm(train_dataloader, desc=f"Training epoch {epoch + 1}")
+        batch_iterator = tqdm(
+            train_dataloader,
+            desc=f"Training epoch {epoch + 1}/{config['epochs']}",
+        )
 
         for batch in batch_iterator:
             src = batch["src"].to(device=device)
@@ -165,7 +168,10 @@ def train(config: dict) -> None:
         with torch.no_grad():
             # Evaluate
             bart_model.eval()
-            batch_iterator = tqdm(val_dataloader, desc=f"Validating epoch {epoch + 1}")
+            batch_iterator = tqdm(
+                val_dataloader,
+                desc=f"Validating epoch {epoch + 1}/{config['epochs']}",
+            )
 
             for batch in batch_iterator:
                 src = batch["src"].to(device=device)
@@ -199,9 +205,16 @@ def train(config: dict) -> None:
         # Save model
         save_model(
             model_filepath=get_weights_file_path(config=config, epoch=epoch),
-            mdoel=bart_model,
+            model=bart_model,
             optimizer=optimizer,
             epoch=epoch,
             global_step=global_step,
         )
-        save_model_config(config=config, epoch=epoch)
+        save_model_config(
+            config=config,
+            epoch=epoch,
+        )
+
+    # Statistic
+    print("Train loss: {:.4f}".format(sum(train_losses) / len(train_losses)))
+    print("Validation loss: {:.4f}".format(sum(val_losses) / len(val_losses)))
