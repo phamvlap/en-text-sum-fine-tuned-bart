@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from torch import Tensor
+from torch import Tensor, LongTensor
 from transformers import BartConfig, BartModel, BartTokenizer
 
 from .constants import SpecialToken
@@ -42,6 +42,33 @@ class FinetuneBartModel(nn.Module):
         out = self.bart_model(**kwargs)
         logits = self.proj(out.last_hidden_state)
         return logits
+
+    def encode(
+        self,
+        input_ids: LongTensor,
+        attention_mask: Tensor,
+    ) -> Tensor:
+        return self.bart_model.encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+        )
+
+    def decode(
+        self,
+        input_ids: LongTensor,
+        attention_mask: Tensor,
+        encoder_hidden_states: Tensor,
+        encoder_attention_mask: Tensor,
+    ) -> Tensor:
+        return self.bart_model.decoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            encoder_hidden_states=encoder_hidden_states,
+            encoder_attention_mask=encoder_attention_mask,
+        )
+
+    def out(self, x: Tensor) -> Tensor:
+        return self.proj(x)
 
 
 def build_bart_model(

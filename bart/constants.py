@@ -11,3 +11,9 @@ class TokenizerType:
     BPE = "bpe"
     WORD_PIECE = "word_piece"
     BYTE_LEVEL_BPE = "byte_level_bpe"
+
+
+class RougeKey:
+    ROUGE_1 = "rouge1"
+    ROUGE_2 = "rouge2"
+    ROUGE_L = "rougeL"

@@ -1,7 +1,7 @@
 import torch
 from pathlib import Path
 
-from bart.constants import SpecialToken
+from bart.constants import SpecialToken, RougeKey
 
 
 def get_config() -> dict:
@@ -75,6 +75,15 @@ def get_config() -> dict:
     config["init_std"] = 0.02
     config["scale_embedding"] = True
     config["num_beams"] = 4
+
+    # Rouge Score configs
+    config["rouge_keys"] = [
+        RougeKey.ROUGE_1,
+        RougeKey.ROUGE_2,
+        RougeKey.ROUGE_L,
+    ]
+    config["use_stemmer"] = True
+    config["accumulate"] = "best"  # 'best' | 'avg'
 
     # Device
     config["device"] = "cuda" if torch.cuda.is_available() else "cpu"
