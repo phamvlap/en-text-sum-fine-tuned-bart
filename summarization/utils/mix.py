@@ -34,3 +34,14 @@ def get_list_weights_file_paths(config: dict) -> None | list[Path]:
     if len(weights_files) == 0:
         return None
     return sorted(weights_files)
+
+
+def noam_lr(
+    model_size: int,
+    step: int,
+    warmup_steps: int,
+    factor: float = 1.0,
+) -> float:
+    return factor * (
+        model_size ** (-0.5) * min(step ** (-0.5), step * warmup_steps ** (-1.5))
+    )

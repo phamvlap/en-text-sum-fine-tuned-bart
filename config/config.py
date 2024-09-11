@@ -48,6 +48,12 @@ def get_config() -> dict:
     config["lr"] = 0.5
     config["eps"] = 1e-9
 
+    # Learning rate scheduler configs
+    config["lr_scheduler"] = "noam"
+
+    # NoamLR scheduler configs
+    config["warmup_steps"] = 4000
+
     # Loss function configs
     config["label_smoothing"] = 0.1
 

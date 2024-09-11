@@ -14,6 +14,7 @@ from .utils.mix import (
     make_dirs,
     get_weights_file_path,
     get_list_weights_file_paths,
+    noam_lr,
 )
 from .tokenizer import load_tokenizer
 
@@ -82,6 +83,17 @@ def train(config: dict) -> None:
         lr=config["lr"],
         eps=config["eps"],
     )
+
+    # Learning rate scheduler
+    if config["lr_scheduler"] == "noam":
+        lr_scheduler = optim.lr_scheduler.LambdaLR(
+            optimizer=optimizer,
+            lr_lambda=lambda step: noam_lr(
+                model_size=config["d_model"],
+                step=step,
+                warmup_steps=config["warmup_steps"],
+            ),
+        )
 
     # Loss function
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
@@ -161,6 +173,8 @@ def train(config: dict) -> None:
             loss.backward()
 
             optimizer.step()
+            if config["lr_scheduler"] == "noam":
+                lr_scheduler.step()
             optimizer.zero_grad(set_to_none=True)
 
             global_step += 1
