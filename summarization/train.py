@@ -15,6 +15,7 @@ from .utils.mix import (
     get_weights_file_path,
     get_list_weights_file_paths,
     noam_lr,
+    get_dir_path,
 )
 from .tokenizer import load_tokenizer
 
@@ -38,7 +39,11 @@ def save_model(
 
 
 def save_model_config(config: dict, epoch: int) -> None:
-    filepath = config["model_dir"] + "/" + config["model_config_file"].format(epoch)
+    filepath = (
+        get_dir_path(dir_name=config["model_dir"])
+        + "/"
+        + config["model_config_file"].format(epoch)
+    )
     for key, value in config.items():
         if isinstance(value, Path):
             config[key] = str(value)

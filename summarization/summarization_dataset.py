@@ -9,12 +9,7 @@ from transformers import BartTokenizer
 
 from bart.constants import SpecialToken
 from .tokenizer import load_tokenizer
-
-
-def load_dataset(path: str) -> pd.DataFrame:
-    if not Path(path).exists():
-        raise FileNotFoundError(f"Dataset file {path} not found")
-    return pd.read_csv(path)
+from .utils.mix import get_dataset_path
 
 
 class SummarizationDataset(Dataset):
@@ -74,6 +69,12 @@ class SummarizationDataset(Dataset):
         }
 
 
+def load_dataset(path: str) -> pd.DataFrame:
+    if not Path(path).exists():
+        raise FileNotFoundError(f"Dataset file {path} not found")
+    return pd.read_csv(path)
+
+
 def collate_fn(batch: list, tokenizer: BartTokenizer) -> dict:
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
@@ -113,9 +114,9 @@ def collate_fn(batch: list, tokenizer: BartTokenizer) -> dict:
 def get_dataloader(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
 
-    train_ds = load_dataset(path=config["train_ds_path"])
-    val_ds = load_dataset(path=config["val_ds_path"])
-    test_ds = load_dataset(path=config["test_ds_path"])
+    train_ds = load_dataset(path=get_dataset_path(filename=config["train_ds_file"]))
+    val_ds = load_dataset(path=get_dataset_path(filename=config["val_ds_file"]))
+    test_ds = load_dataset(path=get_dataset_path(filename=config["test_ds_file"]))
 
     batch_size_train = config["batch_size_train"]
     batch_size_val = config["batch_size_val"]

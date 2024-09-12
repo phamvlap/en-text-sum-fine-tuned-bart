@@ -1,5 +1,4 @@
 import torch
-from pathlib import Path
 
 from bart.constants import SpecialToken, RougeKey
 
@@ -12,22 +11,22 @@ def get_config() -> dict:
     config["base_dir"] = "trained"
 
     # Model configs
-    config["model_dir"] = Path(config["base_dir"], "models")
+    config["model_dir"] = "models"
     config["model_basename"] = "bart_model_"
     config["model_config_file"] = "model_config_{0}.json"
 
     # Dataset configs
     config["dataset_dir"] = "data"
-    config["train_ds_path"] = Path(config["dataset_dir"], "train.csv")
-    config["val_ds_path"] = Path(config["dataset_dir"], "val.csv")
-    config["test_ds_path"] = Path(config["dataset_dir"], "test.csv")
+    config["train_ds_file"] = "train.csv"
+    config["val_ds_file"] = "val.csv"
+    config["test_ds_file"] = "test.csv"
     config["text_src"] = "document"
     config["text_tgt"] = "summary"
 
     # Tokenizer configs
-    config["tokenizer_dir"] = Path(config["base_dir"], "tokenizer")
-    config["tokenizer_bart_dir"] = Path(config["base_dir"], "tokenizer-bart")
-    config["tokenizer_tmp_dir"] = Path(config["base_dir"], "tokenizer-tmp")
+    config["tokenizer_dir"] = "tokenizer"
+    config["tokenizer_bart_dir"] = "tokenizer-bart"
+    config["tokenizer_tmp_dir"] = "tokenizer-tmp"
     config["special_tokens"] = [
         SpecialToken.BOS,
         SpecialToken.EOS,

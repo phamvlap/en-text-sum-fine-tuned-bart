@@ -14,6 +14,7 @@ from tokenizers.trainers import WordLevelTrainer, BpeTrainer, WordPieceTrainer, 
 from transformers import BartTokenizer
 
 from bart.constants import TokenizerType, SpecialToken
+from .utils.mix import get_dir_path
 
 
 class CustomBartTokenizer:
@@ -25,13 +26,16 @@ class CustomBartTokenizer:
         min_freq: int,
         model_type: str,
     ) -> None:
-        self.dataset = self.get_iterator(dataset)
+        self.dataset = self.__get_iterator(dataset)
         self.vocab_size = vocab_size
         self.special_tokens = special_tokens
         self.min_freq = min_freq
         self.model_type = model_type
 
-    def get_iterator(self, dataset: Dataset) -> Generator[str, None, None]:
+    def __get_iterator(
+        self,
+        dataset: Dataset | pd.DataFrame,
+    ) -> Generator[str, None, None]:
         for item in dataset:
             yield item
 
@@ -56,7 +60,7 @@ class CustomBartTokenizer:
 
             tokenizer.train_from_iterator(iterator=self.dataset, trainer=trainer)
 
-        tmp_tokenizer_dir = config["tokenizer_tmp_dir"]
+        tmp_tokenizer_dir = get_dir_path(dir_name=config["tokenizer_tmp_dir"])
         Path(tmp_tokenizer_dir).mkdir(parents=True, exist_ok=True)
 
         tokenizer.model.save(tmp_tokenizer_dir)
@@ -113,10 +117,11 @@ class CustomBartTokenizer:
 
 
 def load_tokenizer(bart_tokenizer_dir: str) -> BartTokenizer:
-    if not Path(bart_tokenizer_dir).exists():
-        raise ValueError(f"Tokenizer path {bart_tokenizer_dir} not found.")
+    full_dir_path = get_dir_path(dir_name=bart_tokenizer_dir)
+    if not Path(full_dir_path).exists():
+        raise ValueError(f"Tokenizer path {full_dir_path} not found.")
 
-    bart_tokenizer = BartTokenizer.from_pretrained(str(bart_tokenizer_dir))
+    bart_tokenizer = BartTokenizer.from_pretrained(str(full_dir_path))
 
     return bart_tokenizer
 
@@ -125,4 +130,4 @@ def save_tokenizer(
     bart_tokenizer: BartTokenizer,
     bart_tokenizer_dir: str | Path,
 ) -> None:
-    bart_tokenizer.save_pretrained(save_directory=str(bart_tokenizer_dir))
+    bart_tokenizer.save_pretrained(get_dir_path(dir_name=bart_tokenizer_dir))
