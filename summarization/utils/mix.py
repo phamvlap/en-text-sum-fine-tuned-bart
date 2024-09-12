@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import pandas as pd
 import torch
 
 from pathlib import Path
@@ -62,3 +63,23 @@ def get_dataset_path(filename: str) -> str:
     if config["dataset_dir"] is None or config["dataset_dir"] == "":
         return f"./{filename}"
     return f"{config['dataset_dir']}/{filename}"
+
+
+def write_to_csv(
+    columns: list[str],
+    data: list[list],
+    file_path: str | Path,
+) -> pd.DataFrame:
+    obj = {}
+    for i, column in enumerate(columns):
+        obj[column] = data[i]
+
+    df = pd.DataFrame(obj)
+
+    file_path = str(file_path)
+    dir_path = file_path.rsplit("/", 1)[0]
+    make_dir(dir_path=dir_path)
+
+    df.to_csv(file_path, index=False)
+
+    return df

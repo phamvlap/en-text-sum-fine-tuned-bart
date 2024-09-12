@@ -86,6 +86,12 @@ def get_config() -> dict:
     config["use_stemmer"] = True
     config["accumulate"] = "best"  # 'best' | 'avg'
 
+    # Beam search configs
+    config["beam_size"] = 3
+
+    # Statistics result configs
+    config["statistic_dir"] = "statistic"
+
     # Device
     config["device"] = "cuda" if torch.cuda.is_available() else "cpu"
 

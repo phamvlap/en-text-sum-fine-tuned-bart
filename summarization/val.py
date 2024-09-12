@@ -1,7 +1,8 @@
 import torch
-
 from torch import Tensor
+from torch.nn import functional as Func
 from torch.utils.data import DataLoader
+
 from transformers import BartTokenizer
 from tqdm import tqdm
 
@@ -64,6 +65,95 @@ def greedy_search_decode(
     return output
 
 
+# Calculate length penalty, formular in (Wu et al., 2016)
+def length_penalty(length: int, alpha: float = 0.6) -> float:
+    return (5 * length) ** alpha / (5 + 1) ** alpha
+
+
+def beam_search_decode(
+    model: FinetuneBartModel,
+    beam_size: int,
+    source: Tensor,
+    source_mask: Tensor,
+    tokenizer: BartTokenizer,
+    seq_length: int,
+    device: torch.device,
+) -> Tensor:
+    bos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
+    eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
+    pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
+
+    encoder_output = model.encode(input_ids=source, attention_mask=source_mask)
+
+    # Initialize decoder input with only BOS token
+    decoder_input = (
+        torch.empty(1, 1).fill_(value=bos_token_id).type_as(source).to(device=device)
+    )
+
+    # Candidate list ccontaints tuples of (candidate, log_score)
+    candidates = [(decoder_input, 0.0)]
+
+    while True:
+        if all(
+            [
+                cand.size(1) == seq_length or cand[0][-1].item() == eos_token_id
+                for cand, _ in candidates
+            ]
+        ):
+            break
+
+        new_candidates = []
+        for candidate, score in candidates:
+            if (
+                candidate.size(1) == seq_length
+                or candidate[0][-1].item() == eos_token_id
+            ):
+                new_candidates.append((candidate, score))
+                continue
+
+            # Create attention mask for decoder input
+            decoder_attention_mask = (
+                (candidate != pad_token_id).type_as(source).to(device=device)
+            )
+
+            # Decode
+            decoder_output = model.decode(
+                input_ids=candidate,
+                attention_mask=decoder_attention_mask,
+                encoder_hidden_states=encoder_output.last_hidden_state,
+                encoder_attention_mask=source_mask,
+            ).last_hidden_state
+
+            # Get the last token logits
+            # logits (1, vocab_size)
+            logits = model.out(decoder_output[:, -1, :])
+
+            # Get the next token probabilities
+            # pure_probs (1, vocab_size)
+            pure_probs = Func.log_softmax(logits, dim=-1) / length_penalty(
+                length=candidate.size(1)
+            )
+
+            # Get top k probabilities and indices
+            # topk_probs (1, beam_size)
+            # topk_indices (1, beam_size)
+            topk_probs, topk_indices = torch.topk(input=pure_probs, k=beam_size, dim=-1)
+
+            for i in range(beam_size):
+                # next_token (1, 1)
+                next_token = topk_indices[0][i].unsqueeze(dim=0).unsqueeze(dim=0)
+                next_token_score = topk_probs[0][i].item()
+
+                new_candidate = torch.cat([candidate, next_token], dim=1)
+
+                new_candidates.append((new_candidate, score + next_token_score))
+
+        candidates = sorted(new_candidates, key=lambda x: x[1], reverse=True)
+        candidates = candidates[:beam_size]
+
+    return candidates[0][0].squeeze(dim=0)
+
+
 @torch.no_grad()
 def validate(
     model: FinetuneBartModel,
@@ -111,14 +201,25 @@ def validate(
             skip_special_tokens=True,
         )
 
-        pred_ids = greedy_search_decode(
-            model=model,
-            source=src,
-            source_mask=src_attention_mask,
-            tokenizer=tokenizer,
-            seq_length=config["max_sequence_length"],
-            device=device,
-        )
+        if config["beam_size"] is not None and config["beam_size"] > 0:
+            pred_ids = beam_search_decode(
+                model=model,
+                beam_size=config["beam_size"],
+                source=src,
+                source_mask=src_attention_mask,
+                tokenizer=tokenizer,
+                seq_length=config["max_sequence_length"],
+                device=device,
+            )
+        else:
+            pred_ids = greedy_search_decode(
+                model=model,
+                source=src,
+                source_mask=src_attention_mask,
+                tokenizer=tokenizer,
+                seq_length=config["max_sequence_length"],
+                device=device,
+            )
 
         pred_text = tokenizer.decode(
             pred_ids.detach().cpu().numpy(),
