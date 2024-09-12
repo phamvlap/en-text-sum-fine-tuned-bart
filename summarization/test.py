@@ -4,7 +4,7 @@ from bart.model import build_bart_model
 from .tokenizer import load_tokenizer
 from .summarization_dataset import get_dataloader
 from .val import validate
-from .utils.mix import set_seed, get_list_weights_file_paths, write_to_csv, get_dir_path
+from .utils.mix import set_seed, get_list_weights_file_paths, write_to_csv
 
 
 def test(config: dict) -> None:
@@ -32,7 +32,7 @@ def test(config: dict) -> None:
     df = write_to_csv(
         columns=rouge_scores.keys(),
         data=[[value] for value in rouge_scores.values()],
-        file_path=f"{get_dir_path(config['statistic_dir'])}/rouge_scores.csv",  # TODO: CHANGE TO CORRECT PATH
+        file_path=f"{config['statistic_dir']}/rouge_scores.csv",
     )
 
     print(df)

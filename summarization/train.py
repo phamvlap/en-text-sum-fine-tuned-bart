@@ -40,7 +40,7 @@ def save_model(
 
 def save_model_config(config: dict, epoch: int) -> None:
     filepath = (
-        get_dir_path(dir_name=config["model_dir"])
+        get_dir_path(config=config, dir_name=config["model_dir"])
         + "/"
         + config["model_config_file"].format(epoch)
     )

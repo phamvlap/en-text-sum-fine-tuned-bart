@@ -1,6 +1,7 @@
 import torch
 
 from bart.constants import SpecialToken, RougeKey
+from summarization.utils.mix import join_path
 
 
 def get_config() -> dict:
@@ -11,22 +12,43 @@ def get_config() -> dict:
     config["base_dir"] = "trained"
 
     # Model configs
-    config["model_dir"] = "models"
+    config["model_dir"] = join_path(
+        base_dir=config["base_dir"],
+        sub_path="models",
+    )
     config["model_basename"] = "bart_model_"
     config["model_config_file"] = "model_config_{0}.json"
 
     # Dataset configs
     config["dataset_dir"] = "data"
-    config["train_ds_file"] = "train.csv"
-    config["val_ds_file"] = "val.csv"
-    config["test_ds_file"] = "test.csv"
+    config["train_ds_path"] = join_path(
+        base_dir=config["dataset_dir"],
+        sub_path="train.csv",
+    )
+    config["val_ds_path"] = join_path(
+        base_dir=config["dataset_dir"],
+        sub_path="val.csv",
+    )
+    config["test_ds_path"] = join_path(
+        base_dir=config["dataset_dir"],
+        sub_path="test.csv",
+    )
     config["text_src"] = "document"
     config["text_tgt"] = "summary"
 
     # Tokenizer configs
-    config["tokenizer_dir"] = "tokenizer"
-    config["tokenizer_bart_dir"] = "tokenizer-bart"
-    config["tokenizer_tmp_dir"] = "tokenizer-tmp"
+    config["tokenizer_dir"] = join_path(
+        base_dir=config["base_dir"],
+        sub_path="tokenizer",
+    )
+    config["tokenizer_bart_dir"] = join_path(
+        base_dir=config["base_dir"],
+        sub_path="tokenizer-bart",
+    )
+    config["tokenizer_tmp_dir"] = join_path(
+        base_dir=config["base_dir"],
+        sub_path="tokenizer-tmp",
+    )
     config["special_tokens"] = [
         SpecialToken.BOS,
         SpecialToken.EOS,
@@ -90,7 +112,10 @@ def get_config() -> dict:
     config["beam_size"] = 3
 
     # Statistics result configs
-    config["statistic_dir"] = "statistic"
+    config["statistic_dir"] = join_path(
+        base_dir=config["base_dir"],
+        sub_path="statistic",
+    )
 
     # Device
     config["device"] = "cuda" if torch.cuda.is_available() else "cpu"
