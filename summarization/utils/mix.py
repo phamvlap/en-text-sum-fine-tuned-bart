@@ -42,6 +42,7 @@ def noam_lr(
     warmup_steps: int,
     factor: float = 1.0,
 ) -> float:
+    step = max(step, 1)
     return factor * (
         model_size ** (-0.5) * min(step ** (-0.5), step * warmup_steps ** (-1.5))
     )

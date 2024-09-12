@@ -9,8 +9,10 @@ def get_config() -> dict:
 
     # General configs
     config["seed"] = 42
-    config["max_sequence_length"] = 500
-    config["model_dir"] = "models"
+    config["base_dir"] = "trained"
+
+    # Model configs
+    config["model_dir"] = Path(config["base_dir"], "models")
     config["model_basename"] = "bart_model_"
     config["model_config_file"] = "model_config_{0}.json"
 
@@ -23,9 +25,9 @@ def get_config() -> dict:
     config["text_tgt"] = "summary"
 
     # Tokenizer configs
-    config["tokenizer_dir"] = "tokenizer"
-    config["tokenizer_bart_dir"] = "tokenizer-bart"
-    config["tokenizer_tmp_dir"] = "tokenizer-tmp"
+    config["tokenizer_dir"] = Path(config["base_dir"], "tokenizer")
+    config["tokenizer_bart_dir"] = Path(config["base_dir"], "tokenizer-bart")
+    config["tokenizer_tmp_dir"] = Path(config["base_dir"], "tokenizer-tmp")
     config["tokenizer_vocab_file"] = "vocab.json"
     config["tokenizer_merges_file"] = "merges.txt"
     config["special_tokens"] = [
@@ -62,6 +64,7 @@ def get_config() -> dict:
     config["preload"] = "latest"
 
     # BART configs
+    config["max_sequence_length"] = 500
     config["d_model"] = 1024
     config["encoder_layers"] = 6
     config["decoder_layers"] = 6

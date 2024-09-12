@@ -62,8 +62,8 @@ class CustomBartTokenizer:
         tokenizer.model.save(tmp_tokenizer_dir)
 
         bart_tokenizer = BartTokenizer(
-            vocab_file=f"{tmp_tokenizer_dir}/{config['tokenizer_vocab_file']}",
-            merges_file=f"{tmp_tokenizer_dir}/{config['tokenizer_merges_file']}",
+            vocab_file=f"{tmp_tokenizer_dir}/vocab.json",
+            merges_file=f"{tmp_tokenizer_dir}/merges.txt",
         )
 
         if Path(tmp_tokenizer_dir).exists():
