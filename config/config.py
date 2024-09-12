@@ -28,8 +28,6 @@ def get_config() -> dict:
     config["tokenizer_dir"] = Path(config["base_dir"], "tokenizer")
     config["tokenizer_bart_dir"] = Path(config["base_dir"], "tokenizer-bart")
     config["tokenizer_tmp_dir"] = Path(config["base_dir"], "tokenizer-tmp")
-    config["tokenizer_vocab_file"] = "vocab.json"
-    config["tokenizer_merges_file"] = "merges.txt"
     config["special_tokens"] = [
         SpecialToken.BOS,
         SpecialToken.EOS,
@@ -46,9 +44,10 @@ def get_config() -> dict:
     config["batch_size_val"] = 16
     config["batch_size_test"] = 1
 
-    # Learning configs
+    # Adam optimizer configs
     config["lr"] = 0.5
-    config["eps"] = 1e-9
+    config["betas"] = (0.9, 0.98)
+    config["eps"] = 1e-9  # = 10 ** -9
 
     # Learning rate scheduler configs
     config["lr_scheduler"] = "noam"

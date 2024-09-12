@@ -81,6 +81,7 @@ def train(config: dict) -> None:
     optimizer = optim.Adam(
         params=bart_model.parameters(),
         lr=config["lr"],
+        betas=config["betas"],
         eps=config["eps"],
     )
 
