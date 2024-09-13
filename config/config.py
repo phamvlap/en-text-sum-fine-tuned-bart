@@ -97,20 +97,25 @@ def get_config() -> dict:
     config["preload"] = "latest"
 
     # BART configs
-    config["max_sequence_length"] = 500
-    config["d_model"] = 1024
-    config["encoder_layers"] = 6
-    config["decoder_layers"] = 6
-    config["encoder_attention_heads"] = 8
-    config["decoder_attention_heads"] = 8
-    config["encoder_ffn_dim"] = 2048
-    config["decoder_ffn_dim"] = 2048
-    config["activation_function"] = "relu"
-    config["dropout"] = 0.1
+    config["max_sequence_length"] = 512  # max length of input sequence
+    config["d_model"] = 1024  # dimension of hidden layers
+    config["encoder_layers"] = 6  # number of encoder layers
+    config["decoder_layers"] = 6  # number of decoder layers
+    config["encoder_attention_heads"] = 8  # number of encoder attention heads
+    config["decoder_attention_heads"] = 8  # number of decoder attention heads
+    config["encoder_ffn_dim"] = 2048  # dimension of feedforward network in encoder
+    config["decoder_ffn_dim"] = 2048  # dimension of feedforward network in decoder
+    config["activation_function"] = "relu"  # 'gelu', 'relu', 'silu' or 'gelu_new'
+    config["dropout"] = 0.1  # dropout rate for individual layer
+    config["attention_dropout"] = 0.1  # dropout rate for attention layer
+    config["activation_dropout"] = 0.1  # dropout rate after activation function
+    config["classifier_dropout"] = 0.1  # dropout rate for classifier
     config["max_position_embeddings"] = config["max_sequence_length"]
-    config["init_std"] = 0.02
-    config["scale_embedding"] = True
-    config["num_beams"] = 4
+    config["init_std"] = 0.02  # standard deviation for initializing weight parameters
+    config["encoder_layerdrop"] = 0.2  # layer dropout rate for entire encoder layers
+    config["decoder_layerdrop"] = 0.2  # layer dropout rate for entire decoder layers
+    config["scale_embedding"] = True  # scale embedding by sqrt(d_model)
+    config["num_beams"] = 4  # beam search size
 
     # Rouge Score configs
     config["rouge_keys"] = [

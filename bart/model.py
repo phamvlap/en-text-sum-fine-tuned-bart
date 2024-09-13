@@ -7,6 +7,10 @@ from .constants import SpecialToken
 
 
 def get_bart_config(config: dict, tokenizer: BartTokenizer) -> BartConfig:
+    bos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
+    pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
+    eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
+
     bart_config = BartConfig(
         vocab_size=tokenizer.vocab_size,
         d_model=config["d_model"],
@@ -18,13 +22,20 @@ def get_bart_config(config: dict, tokenizer: BartTokenizer) -> BartConfig:
         decoder_ffn_dim=config["decoder_ffn_dim"],
         activation_function=config["activation_function"],
         dropout=config["dropout"],
+        attention_dropout=config["attention_dropout"],
+        activation_dropout=config["activation_dropout"],
+        classifier_dropout=config["classifier_dropout"],
         max_position_embeddings=config["max_position_embeddings"],
         init_std=config["init_std"],
+        encoder_layerdrop=config["encoder_layerdrop"],
+        decoder_layerdrop=config["decoder_layerdrop"],
         scale_embedding=config["scale_embedding"],
         num_beams=config["num_beams"],
-        bos_token_id=tokenizer.convert_tokens_to_ids(SpecialToken.BOS),
-        pad_token_id=tokenizer.convert_tokens_to_ids(SpecialToken.PAD),
-        eos_token_id=tokenizer.convert_tokens_to_ids(SpecialToken.EOS),
+        bos_token_id=bos_token_id,
+        pad_token_id=pad_token_id,
+        eos_token_id=eos_token_id,
+        forced_bos_token_id=bos_token_id,
+        forced_eos_token_id=eos_token_id,
     )
 
     return bart_config
