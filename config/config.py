@@ -20,7 +20,7 @@ def get_config() -> dict:
     config["model_config_file"] = "model_config_{0}.json"
 
     # Dataset configs
-    config["dataset_dir"] = "data"
+    config["dataset_dir"] = "dataset"
     config["train_ds_path"] = join_path(
         base_dir=config["dataset_dir"],
         sub_path="train.csv",
@@ -31,6 +31,19 @@ def get_config() -> dict:
     )
     config["test_ds_path"] = join_path(
         base_dir=config["dataset_dir"],
+        sub_path="test.csv",
+    )
+    config["raw_dataset_dir"] = "raw_dataset_dir"
+    config["raw_train_ds_path"] = join_path(
+        base_dir=config["raw_dataset_dir"],
+        sub_path="train.csv",
+    )
+    config["raw_val_ds_path"] = join_path(
+        base_dir=config["raw_dataset_dir"],
+        sub_path="val.csv",
+    )
+    config["raw_test_ds_path"] = join_path(
+        base_dir=config["raw_dataset_dir"],
         sub_path="test.csv",
     )
     config["text_src"] = "document"

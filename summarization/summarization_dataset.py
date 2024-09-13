@@ -1,13 +1,13 @@
 import pandas as pd
 import torch
 
-from pathlib import Path
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from transformers import BartTokenizer
 
 from bart.constants import SpecialToken
 from .tokenizer import load_tokenizer
+from .preprocessing import load_dataset
 
 
 class SummarizationDataset(Dataset):
@@ -65,12 +65,6 @@ class SummarizationDataset(Dataset):
             "tgt": tgt_tokens,
             "label": label,
         }
-
-
-def load_dataset(path: str) -> pd.DataFrame:
-    if not Path(path).exists():
-        raise FileNotFoundError(f"Dataset file {path} not found")
-    return pd.read_csv(path)
 
 
 def collate_fn(batch: list, tokenizer: BartTokenizer) -> dict:
