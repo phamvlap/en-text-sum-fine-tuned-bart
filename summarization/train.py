@@ -1,53 +1,15 @@
-import json
 import torch
 import torch.optim as optim
 import torch.nn as nn
 
-from pathlib import Path
-from tqdm import tqdm
-
 from bart.model import build_bart_model
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
+from .trainer import Trainer
+from .tokenizer import load_tokenizer
 from .utils.seed import set_seed
 from .utils.mix import noam_lr
-from .utils.path import (
-    join_path,
-    make_dirs,
-    get_weights_file_path,
-    get_list_weights_file_paths,
-)
-from .tokenizer import load_tokenizer
-
-
-def save_model(
-    model_filepath: str,
-    model: nn.Module,
-    optimizer: optim.Optimizer,
-    epoch: int,
-    global_step: int,
-) -> None:
-    torch.save(
-        {
-            "epoch": epoch,
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "global_step": global_step,
-        },
-        model_filepath,
-    )
-
-
-def save_model_config(config: dict, epoch: int) -> None:
-    filepath = join_path(
-        base_dir=config["model_dir"],
-        sub_path=config["model_config_file"].format(epoch),
-    )
-    for key, value in config.items():
-        if isinstance(value, Path):
-            config[key] = str(value)
-    with open(filepath, "w") as f:
-        json.dump(config, f, indent=4)
+from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_paths
 
 
 def train(config: dict) -> None:
@@ -90,6 +52,7 @@ def train(config: dict) -> None:
     )
 
     # Learning rate scheduler
+    lr_scheduler = None
     if config["lr_scheduler"] == "noam":
         lr_scheduler = optim.lr_scheduler.LambdaLR(
             optimizer=optimizer,
@@ -117,7 +80,11 @@ def train(config: dict) -> None:
         if list_weights_file_paths is not None:
             model_filename = list_weights_file_paths[-1]
     else:
-        model_filename = get_weights_file_path(config=config, epoch=config["preload"])
+        model_filename = get_weights_file_path(
+            model_basedir=config["model_dir"],
+            model_basename=config["model_basename"],
+            epoch=config["preload"],
+        )
 
     if model_filename is not None:
         state = torch.load(model_filename)
@@ -131,109 +98,24 @@ def train(config: dict) -> None:
     else:
         print("No model loaded, training from scratch.")
 
-    train_losses = []
-    val_losses = []
+    trainer = Trainer(
+        model=bart_model,
+        optimizer=optimizer,
+        lr_scheduler=lr_scheduler,
+        tokenizer=tokenizer,
+        loss_fn=loss_fn,
+        initial_epoch=initial_epoch,
+        initial_global_step=global_step,
+        num_epochs=config["epochs"],
+        args={
+            "device": config["device"],
+            "model_dir": config["model_dir"],
+            "model_basename": config["model_basename"],
+            "config_data": config,
+        },
+    )
 
-    # Traing loop
-    for epoch in range(initial_epoch, config["epochs"]):
-        torch.cuda.empty_cache()
-
-        # Train
-        bart_model.train()
-        batch_iterator = tqdm(
-            train_dataloader,
-            desc=f"Training epoch {epoch + 1}/{config['epochs']}",
-        )
-
-        for batch in batch_iterator:
-            src = batch["src"].to(device=device)
-            tgt = batch["tgt"].to(device=device)
-            label = batch["label"].to(device=device)
-
-            src_attention_mask = (src != pad_token_id).to(
-                device=device,
-                dtype=torch.int64,
-            )
-            tgt_attention_mask = (tgt != pad_token_id).to(
-                device=device,
-                dtype=torch.int64,
-            )
-
-            logits = bart_model(
-                input_ids=src,
-                attention_mask=src_attention_mask,
-                decoder_input_ids=tgt,
-                decoder_attention_mask=tgt_attention_mask,
-            )
-
-            # Compute loss
-            loss = loss_fn(logits.view(-1, logits.size(-1)), label.view(-1))
-            train_losses.append(loss.item())
-            batch_iterator.set_postfix(
-                {
-                    "loss": f"{loss.item():.4f}",
-                }
-            )
-
-            loss.backward()
-
-            optimizer.step()
-            if config["lr_scheduler"] == "noam":
-                lr_scheduler.step()
-            optimizer.zero_grad(set_to_none=True)
-
-            global_step += 1
-
-        with torch.no_grad():
-            # Evaluate
-            bart_model.eval()
-            batch_iterator = tqdm(
-                val_dataloader,
-                desc=f"Validating epoch {epoch + 1}/{config['epochs']}",
-            )
-
-            for batch in batch_iterator:
-                src = batch["src"].to(device=device)
-                tgt = batch["tgt"].to(device=device)
-                label = batch["label"].to(device=device)
-
-                src_attention_mask = (src != pad_token_id).to(
-                    device=device,
-                    dtype=torch.int64,
-                )
-                tgt_attention_mask = (tgt != pad_token_id).to(
-                    device=device,
-                    dtype=torch.int64,
-                )
-
-                logits = bart_model(
-                    input_ids=src,
-                    attention_mask=src_attention_mask,
-                    decoder_input_ids=tgt,
-                    decoder_attention_mask=tgt_attention_mask,
-                )
-
-                loss = loss_fn(logits.view(-1, logits.size(-1)), label.view(-1))
-                val_losses.append(loss.item())
-                batch_iterator.set_postfix(
-                    {
-                        "loss": f"{loss.item():.4f}",
-                    }
-                )
-
-        # Save model
-        save_model(
-            model_filepath=get_weights_file_path(config=config, epoch=epoch),
-            model=bart_model,
-            optimizer=optimizer,
-            epoch=epoch,
-            global_step=global_step,
-        )
-        save_model_config(
-            config=config,
-            epoch=epoch,
-        )
-
-    # Statistic
-    print("Train loss: {:.4f}".format(sum(train_losses) / len(train_losses)))
-    print("Validation loss: {:.4f}".format(sum(val_losses) / len(val_losses)))
+    trainer.train(
+        train_dataloader=train_dataloader,
+        val_dataloader=val_dataloader,
+    )

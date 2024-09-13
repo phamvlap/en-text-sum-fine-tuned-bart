@@ -15,10 +15,10 @@ def make_dirs(config: dict, dir_names: list[str]) -> None:
         Path(dir_path).mkdir(parents=True, exist_ok=True)
 
 
-def get_weights_file_path(config: dict, epoch: str) -> str:
+def get_weights_file_path(model_basedir: str, model_basename: str, epoch: str) -> str:
     return join_path(
-        base_dir=config["model_dir"],
-        sub_path=f"{config['model_basename']}{epoch}.pt",
+        base_dir=model_basedir,
+        sub_path=f"{model_basename}{epoch}.pt",
     )
 
 
