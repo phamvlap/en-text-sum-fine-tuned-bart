@@ -1,7 +1,7 @@
 import torch
 
 from bart.constants import SpecialToken, RougeKey
-from summarization.utils.mix import join_path
+from summarization.utils.path import join_path
 
 
 def get_config() -> dict:

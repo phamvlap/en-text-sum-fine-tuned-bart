@@ -10,7 +10,7 @@ from bart.model import FinetuneBartModel
 from bart.constants import SpecialToken
 from .tokenizer import load_tokenizer
 from .rouge_scorer import RougeScorer
-from .utils.mix import set_seed
+from .utils.seed import set_seed
 
 
 def greedy_search_decode(

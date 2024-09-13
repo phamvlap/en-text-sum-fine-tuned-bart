@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 
 from .utils.dataset import handle_dataset_features
-from .utils.mix import make_dir
+from .utils.path import make_dir
 
 
 def load_dataset(path: str) -> pd.DataFrame:
