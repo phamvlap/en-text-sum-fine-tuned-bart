@@ -2,7 +2,7 @@ import pandas as pd
 
 from pathlib import Path
 
-from .utils.dataset import handle_dataset_features
+from .utils.dataset import clean_dataset
 from .utils.path import make_dir
 
 
@@ -19,9 +19,9 @@ def preprocessing(config: dict) -> None:
 
     features = [config["text_src"], config["text_tgt"]]
 
-    train_ds = handle_dataset_features(df=raw_train_ds, features=features)
-    val_ds = handle_dataset_features(df=raw_val_ds, features=features)
-    test_ds = handle_dataset_features(df=raw_test_ds, features=features)
+    train_ds = clean_dataset(df=raw_train_ds, features=features)
+    val_ds = clean_dataset(df=raw_val_ds, features=features)
+    test_ds = clean_dataset(df=raw_test_ds, features=features)
 
     make_dir(dir_path=config["dataset_dir"])
 
@@ -29,7 +29,7 @@ def preprocessing(config: dict) -> None:
     val_ds.to_csv(config["val_ds_path"], index=False)
     test_ds.to_csv(config["test_ds_path"], index=False)
 
-    print("Preprocessing done!")
+    print("Preprocessing dataset done!")
     print("Datasets saved at directory: {}".format(config["dataset_dir"]))
     print("Length of train dataset: {}".format(len(train_ds)))
     print("Length of val dataset: {}".format(len(val_ds)))

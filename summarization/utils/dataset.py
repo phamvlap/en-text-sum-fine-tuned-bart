@@ -19,7 +19,7 @@ def handle_punctuation(text: str) -> str:
 
 
 def handle_en_text(text: str) -> str:
-    text = text.lower()
+    text = str(text).lower()
     text = contractions.fix(text)
 
     text = remove_urls(text)
@@ -39,4 +39,10 @@ def handle_dataset_features(df: pd.DataFrame, features: list[str]) -> pd.DataFra
         if feature not in df.columns:
             continue
         df = handle_feature(df=df, feature=feature)
+    return df
+
+
+def clean_dataset(df: pd.DataFrame, features: list[str]) -> pd.DataFrame:
+    df = df.dropna().drop_duplicates().reset_index(drop=True)
+    df = handle_dataset_features(df=df, features=features)
     return df
