@@ -50,18 +50,9 @@ def get_config() -> dict:
     config["text_tgt"] = "summary"
 
     # Tokenizer configs
-    config["tokenizer_dir"] = join_path(
-        base_dir=config["base_dir"],
-        sub_path="tokenizer",
-    )
-    config["tokenizer_bart_dir"] = join_path(
-        base_dir=config["base_dir"],
-        sub_path="tokenizer-bart",
-    )
-    config["tokenizer_tmp_dir"] = join_path(
-        base_dir=config["base_dir"],
-        sub_path="tokenizer-tmp",
-    )
+    config["tokenizer_train_ds_path"] = "dataset/train.csv"
+    config["tokenizer_dir"] = "tokenizer"
+    config["tokenizer_bart_dir"] = "tokenizer-bart"
     config["special_tokens"] = [
         SpecialToken.BOS,
         SpecialToken.EOS,
@@ -69,9 +60,11 @@ def get_config() -> dict:
         SpecialToken.MASK,
         SpecialToken.UNK,
     ]
+    config["shared_vocab"] = True
     config["vocab_size"] = 30000
     config["min_freq"] = 2
     config["model_type"] = "bpe"
+    config["show_progress"] = True
 
     # Dataloader configs
     config["batch_size_train"] = 16

@@ -1,38 +1,37 @@
 import pandas as pd
-
-from pathlib import Path
-from torch.utils.data import Dataset
 from transformers import BartTokenizer
 
+from .preprocessing import load_dataset
 from .tokenizer import CustomBartTokenizer, save_tokenizer
 
 
-def train_tokenizer(
-    dataset: Dataset | pd.DataFrame,
-    vocab_size: int,
-    special_tokens: list[str],
-    min_freq: int,
-    model_type: str,
-    bart_tokenizer_path: str | Path,
-    config: dict,
-    show_progress: bool = False,
-) -> BartTokenizer:
+def train(config: dict) -> BartTokenizer:
+    ds = load_dataset(path=config["tokenizer_train_ds_path"])
+    if config["shared_vocab"]:
+        ds_train = pd.concat([ds[config["text_src"]], ds[config["text_tgt"]]], axis=0)
+    else:
+        ds_train = ds[config["text_src"]]
+
     bart_tokenizer = CustomBartTokenizer(
-        dataset=dataset,
-        vocab_size=vocab_size,
-        special_tokens=special_tokens,
-        min_freq=min_freq,
-        model_type=model_type,
+        dataset=ds_train,
+        vocab_size=config["vocab_size"],
+        special_tokens=config["special_tokens"],
+        min_freq=config["min_freq"],
+        model_type=config["model_type"],
     )
 
     bart_tokenizer = bart_tokenizer.train(
         config=config,
-        show_progress=show_progress,
+        show_progress=config["show_progress"],
     )
 
     save_tokenizer(
         bart_tokenizer=bart_tokenizer,
-        bart_tokenizer_dir=bart_tokenizer_path,
+        bart_tokenizer_dir=config["tokenizer_bart_dir"],
     )
+
+    print("Training tokenizer done!")
+    print(f"Trained tokenizer saved at directory: {config['tokenizer_bart_dir']}")
+    print(f"Vocab size: {config['vocab_size']}")
 
     return bart_tokenizer

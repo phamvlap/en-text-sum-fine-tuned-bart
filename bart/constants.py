@@ -4,12 +4,12 @@ class SpecialToken:
     PAD = "<pad>"
     UNK = "<unk>"
     MASK = "<mask>"
+    BPE_SUFFIX = "</w>"
+    BYTE_LEVEL_BPE_SUFFIX = "</w>"
 
 
 class TokenizerType:
-    WORD_LEVEL = "word_level"
     BPE = "bpe"
-    WORD_PIECE = "word_piece"
     BYTE_LEVEL_BPE = "byte_level_bpe"
 
 

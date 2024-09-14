@@ -1,3 +1,4 @@
+import types
 import pandas as pd
 
 from pathlib import Path
@@ -34,3 +35,15 @@ def write_to_csv(
     df.to_csv(file_path, index=False)
 
     return df
+
+
+def get_constants_from_module(module: object) -> dict:
+    constants = vars(module)
+    super_keys = ["__module__", "__init__", "__dict__", "__weakref__", "__doc__"]
+
+    normal_constants = {}
+    for key, value in constants.items():
+        if key not in super_keys and not isinstance(value, types.FunctionType):
+            normal_constants[key] = constants[key]
+
+    return normal_constants
