@@ -6,7 +6,7 @@ from bart.model import build_bart_model
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
 from .trainer import Trainer
-from .tokenizer import load_tokenizer
+from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
 from .utils.mix import noam_lr
 from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_paths

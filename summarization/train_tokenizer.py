@@ -2,7 +2,7 @@ import pandas as pd
 from transformers import BartTokenizer
 
 from .preprocessing import load_dataset
-from .tokenizer import CustomBartTokenizer, save_tokenizer
+from .utils.tokenizer import CustomBartTokenizer, save_tokenizer
 from .utils.dataset import clean_dataset
 
 

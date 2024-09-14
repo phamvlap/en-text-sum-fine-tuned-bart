@@ -8,8 +8,8 @@ from transformers import BartTokenizer
 from tokenizers import ByteLevelBPETokenizer
 
 from bart.constants import TokenizerType, SpecialToken
-from .utils.mix import get_constants_from_module
-from .utils.path import make_dir
+from .mix import get_constants_from_module
+from .path import make_dir
 
 
 class CustomBartTokenizer:

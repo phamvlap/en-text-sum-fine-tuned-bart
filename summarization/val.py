@@ -8,8 +8,8 @@ from tqdm import tqdm
 
 from bart.model import FinetuneBartModel
 from bart.constants import SpecialToken
-from .tokenizer import load_tokenizer
-from .rouge_scorer import RougeScorer
+from .utils.tokenizer import load_tokenizer
+from .utils.rouge_scorer import RougeScorer
 from .utils.seed import set_seed
 
 

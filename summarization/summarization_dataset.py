@@ -6,8 +6,8 @@ from torch.nn.utils.rnn import pad_sequence
 from transformers import BartTokenizer
 
 from bart.constants import SpecialToken
-from .tokenizer import load_tokenizer
 from .preprocessing import load_dataset
+from .utils.tokenizer import load_tokenizer
 
 
 class SummarizationDataset(Dataset):
