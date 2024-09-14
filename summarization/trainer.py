@@ -22,7 +22,7 @@ class Trainer:
         tokenizer: BartTokenizer,
         loss_fn: nn.CrossEntropyLoss,
         initial_epoch: int,
-        inital_global_step: int,
+        initial_global_step: int,
         num_epochs: int,
         args: dict,
     ) -> None:
@@ -32,13 +32,13 @@ class Trainer:
         self.pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
         self.loss_fn = loss_fn
         self.initial_epoch = initial_epoch
-        self.inital_global_step = inital_global_step
+        self.initial_global_step = initial_global_step
         self.num_epochs = num_epochs
         self.device = args["device"]
         self.args = args
 
     def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader) -> None:
-        global_step = self.inital_global_step
+        global_step = self.initial_global_step
 
         train_losses = []
         val_losses = []

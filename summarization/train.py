@@ -111,6 +111,7 @@ def train(config: dict) -> None:
             "device": config["device"],
             "model_dir": config["model_dir"],
             "model_basename": config["model_basename"],
+            "model_config_file": config["model_config_file"],
             "config_data": config,
         },
     )
