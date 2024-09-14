@@ -61,9 +61,9 @@ def get_config() -> dict:
         SpecialToken.UNK,
     ]
     config["shared_vocab"] = True
-    config["vocab_size"] = 30000
+    config["vocab_size"] = 50000
     config["min_freq"] = 2
-    config["model_type"] = "bpe"
+    config["model_type"] = "btye_level_bpe"
     config["show_progress"] = True
 
     # Dataloader configs
