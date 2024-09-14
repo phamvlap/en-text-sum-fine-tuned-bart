@@ -6,13 +6,15 @@ from .tokenizer import CustomBartTokenizer, save_tokenizer
 from .utils.dataset import clean_dataset
 
 
-def train(config: dict) -> BartTokenizer:
+def train_tokenizer(config: dict) -> BartTokenizer:
     ds = load_dataset(path=config["tokenizer_train_ds_path"])
+
     if config["shared_vocab"]:
         ds_train = pd.concat([ds[config["text_src"]], ds[config["text_tgt"]]], axis=0)
     else:
         ds_train = ds[config["text_src"]]
 
+    ds_train = pd.DataFrame(ds_train, columns=[config["text_src"]])
     ds_train = clean_dataset(df=ds_train, features=config["text_src"])
 
     bart_tokenizer = CustomBartTokenizer(
@@ -23,10 +25,7 @@ def train(config: dict) -> BartTokenizer:
         model_type=config["model_type"],
     )
 
-    bart_tokenizer = bart_tokenizer.train(
-        config=config,
-        show_progress=config["show_progress"],
-    )
+    bart_tokenizer = bart_tokenizer.train(show_progress=config["show_progress"])
 
     save_tokenizer(
         bart_tokenizer=bart_tokenizer,

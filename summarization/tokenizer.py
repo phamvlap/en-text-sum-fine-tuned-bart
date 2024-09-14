@@ -39,7 +39,7 @@ class CustomBartTokenizer:
         for item in dataset:
             yield item
 
-    def train(self, config: dict, show_progress: bool = True) -> BartTokenizer:
+    def train(self, show_progress: bool = True) -> BartTokenizer:
         print(f"Training tokenizer with model type: {self.model_type}...")
         if self.model_type == TokenizerType.BYTE_LEVEL_BPE:
             tokenizer = ByteLevelBPETokenizer(
