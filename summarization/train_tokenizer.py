@@ -8,17 +8,19 @@ from .utils.dataset import clean_dataset
 
 def train_tokenizer(config: dict) -> BartTokenizer:
     ds = load_dataset(path=config["tokenizer_train_ds_path"])
+    src_feature = config["text_src"]
+    tgt_feature = config["text_tgt"]
 
     if config["shared_vocab"]:
-        ds_train = pd.concat([ds[config["text_src"]], ds[config["text_tgt"]]], axis=0)
+        ds_train = pd.concat([ds[src_feature], ds[tgt_feature]], axis=0)
     else:
-        ds_train = ds[config["text_src"]]
+        ds_train = ds[src_feature]
 
-    ds_train = pd.DataFrame(ds_train, columns=[config["text_src"]])
-    ds_train = clean_dataset(df=ds_train, features=config["text_src"])
+    ds_train = pd.DataFrame(ds_train, columns=[src_feature])
+    ds_train = clean_dataset(df=ds_train, features=src_feature)
 
     bart_tokenizer = CustomBartTokenizer(
-        dataset=ds_train,
+        dataset=ds_train[src_feature],
         vocab_size=config["vocab_size"],
         special_tokens=config["special_tokens"],
         min_freq=config["min_freq"],
@@ -34,6 +36,6 @@ def train_tokenizer(config: dict) -> BartTokenizer:
 
     print("Training tokenizer done!")
     print(f"Trained tokenizer saved at directory: {config['tokenizer_bart_dir']}")
-    print(f"Vocab size: {config['vocab_size']}")
+    print(f"Vocab size: {bart_tokenizer.vocab_size}")
 
     return bart_tokenizer

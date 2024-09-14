@@ -5,12 +5,7 @@ from pathlib import Path
 from typing import Generator
 from torch.utils.data import Dataset
 from transformers import BartTokenizer
-
-from tokenizers import Tokenizer, ByteLevelBPETokenizer
-from tokenizers.pre_tokenizers import Whitespace
-from tokenizers.models import BPE
-from tokenizers.trainers import BpeTrainer
-from tokenizers.decoders import BPEDecoder
+from tokenizers import ByteLevelBPETokenizer
 
 from bart.constants import TokenizerType, SpecialToken
 from .utils.mix import get_constants_from_module
@@ -52,20 +47,6 @@ class CustomBartTokenizer:
                 special_tokens=self.special_tokens,
                 show_progress=show_progress,
             )
-        elif self.model_type == TokenizerType.BPE:
-            tokenizer = Tokenizer(BPE(unk_token=SpecialToken.UNK))
-            tokenizer.pre_tokenizer = Whitespace()
-            tokenizer.decoder = BPEDecoder(suffix=SpecialToken.BPE_SUFFIX)
-
-            trainer = BpeTrainer(
-                vocab_size=self.vocab_size,
-                min_frequency=self.min_freq,
-                special_tokens=self.special_tokens,
-                show_progress=show_progress,
-                end_of_word_suffix=SpecialToken.BPE_SUFFIX,
-            )
-
-            tokenizer.train_from_iterator(iterator=self.dataset, trainer=trainer)
         else:
             raise ValueError(
                 f"{self.model_type} not supported. Please choose from {', '.join(get_constants_from_module(module=TokenizerType).values())}"
