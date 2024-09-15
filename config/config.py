@@ -88,6 +88,8 @@ def get_config() -> dict:
     # Training configs
     config["epochs"] = 10
     config["preload"] = "latest"
+    config["evaluating_steps"] = 1000
+    config["log_dir"] = "logs"
 
     # BART configs
     config["max_sequence_length"] = 512  # max length of input sequence

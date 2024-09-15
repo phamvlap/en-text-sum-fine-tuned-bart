@@ -2,6 +2,8 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 
+from torch.utils.tensorboard import SummaryWriter
+
 from bart.model import build_bart_model
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
@@ -98,6 +100,8 @@ def train(config: dict) -> None:
     else:
         print("No model loaded, training from scratch.")
 
+    writer = SummaryWriter(log_dir=config["log_dir"])
+
     trainer = Trainer(
         model=bart_model,
         optimizer=optimizer,
@@ -108,12 +112,14 @@ def train(config: dict) -> None:
         initial_global_step=global_step,
         num_epochs=config["epochs"],
         args={
-            "device": config["device"],
+            "device": device,
+            "evaluating_steps": config["evaluating_steps"],
             "model_dir": config["model_dir"],
             "model_basename": config["model_basename"],
             "model_config_file": config["model_config_file"],
             "config_data": config,
         },
+        writer=writer,
     )
 
     trainer.train(
