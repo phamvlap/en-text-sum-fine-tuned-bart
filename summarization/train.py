@@ -7,7 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 from bart.model import build_bart_model
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
-from .trainer import Trainer
+from .trainer import Trainer, TrainingConfig
 from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
 from .utils.mix import noam_lr
@@ -102,23 +102,28 @@ def train(config: dict) -> None:
 
     writer = SummaryWriter(log_dir=config["log_dir"])
 
+    training_config = TrainingConfig(
+        device=device,
+        initial_epoch=initial_epoch,
+        initial_global_step=global_step,
+        num_epochs=config["epochs"],
+        model_dir=config["model_dir"],
+        model_basename=config["model_basename"],
+        evaluating_steps=config["evaluating_steps"],
+        beam_size=config["beam_size"],
+        log_examples=config["log_examples"],
+        logging_steps=config["logging_steps"],
+        use_stemmer=config["use_stemmer"],
+        accumulate=config["accumulate"],
+    )
+
     trainer = Trainer(
         model=bart_model,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
         tokenizer=tokenizer,
         loss_fn=loss_fn,
-        initial_epoch=initial_epoch,
-        initial_global_step=global_step,
-        num_epochs=config["epochs"],
-        args={
-            "device": device,
-            "evaluating_steps": config["evaluating_steps"],
-            "model_dir": config["model_dir"],
-            "model_basename": config["model_basename"],
-            "model_config_file": config["model_config_file"],
-            "config_data": config,
-        },
+        config=training_config,
         writer=writer,
     )
 
