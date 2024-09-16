@@ -26,7 +26,7 @@ class Statistics:
         self.average = average
         self.beta = beta
 
-        if ignore_index is not None:
+        if ignore_index is None:
             raise ValueError("ignore_index must be provided")
         self.ignore_index = ignore_index
 
