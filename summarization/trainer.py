@@ -97,17 +97,14 @@ class Trainer:
                     dtype=torch.int64,
                 )
 
-                # decoder_output (batch_size, seq_length, d_model)
-                decoder_output = self.model(
+                # logits (batch_size, seq_length, vocab_size)
+                logits = self.model(
                     input_ids=encoder_input,
                     attention_mask=src_attention_mask,
                     decoder_input_ids=decoder_input,
                     decoder_attention_mask=tgt_attention_mask,
                 )
 
-                # logits (batch_size, seq_length, vocab_size)
-                # pred (batch_size, seq_length)
-                logits = self.model.out(decoder_output)
                 pred = torch.argmax(logits, dim=-1)
 
                 # Compute loss
