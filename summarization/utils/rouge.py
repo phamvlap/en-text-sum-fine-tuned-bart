@@ -11,22 +11,23 @@ from ..summarization_dataset import SummarizationDataset
 from bart.constants import RougeKey
 from .eval import greedy_search_decode, beam_search_decode
 
-all_rouge_keys = (
-    RougeKey.ROUGE_1,
-    RougeKey.ROUGE_2,
-    RougeKey.ROUGE_L,
-)
-
 
 class RougeScorer:
     def __init__(
         self,
-        rouge_keys: list[str] | tuple[str] = all_rouge_keys,
+        rouge_keys: list[str] | tuple[str] | None = None,
         use_stemmer: bool = True,
         normalizer_function: callable = None,
         tokenizer_function: callable = None,
         accumulate: Literal["best", "avg"] = "best",
     ) -> None:
+        all_rouge_keys = (
+            RougeKey.ROUGE_1,
+            RougeKey.ROUGE_2,
+            RougeKey.ROUGE_L,
+        )
+        rouge_keys = rouge_keys if rouge_keys is not None else all_rouge_keys
+
         self.rouge_scorer = ROUGEScore(
             use_stemmer=use_stemmer,
             normalizer=normalizer_function,
@@ -35,11 +36,15 @@ class RougeScorer:
             rouge_keys=tuple(rouge_keys),
         )
 
-    def compute(self, preds: list[str] | str, targets: list[str] | str) -> dict:
+    def compute(
+        self,
+        preds: list[str] | str,
+        targets: list[str] | str,
+    ) -> dict[str, float]:
         return self.rouge_scorer(preds, targets)
 
 
-def format_rouge_score(pure_rouge_score: dict) -> dict:
+def format_rouge_score(pure_rouge_score: dict[str, float]) -> dict[str, float]:
     rouge_score = {}
     for key in pure_rouge_score.keys():
         rouge_key = f"ROUGE@{key.replace('rouge', '')}"
@@ -62,10 +67,10 @@ def compute_dataset_rouge(
     log_examples: bool = True,
     logging_steps: int = 100,
     use_stemmer: bool = True,
-    rouge_keys: list[str] | tuple[str] = all_rouge_keys,
+    rouge_keys: list[str] | tuple[str] | None = None,
     normalizer_function: callable = None,
     accumulate: Literal["best", "avg"] = "best",
-) -> dict:
+) -> dict[str, float]:
     pred_text_list = []
     target_text_list = []
 

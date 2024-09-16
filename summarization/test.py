@@ -1,40 +1,80 @@
 import torch
+import torch.nn as nn
 
 from bart.model import build_bart_model
+from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
-from .val import validate
-from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
 from .utils.mix import write_to_csv
+from .utils.eval import evaluate
 from .utils.path import get_list_weights_file_paths
+from .utils.tokenizer import load_tokenizer
+from .utils.rouge import compute_dataset_rouge
 
 
 def test(config: dict) -> None:
     set_seed(seed=config["seed"])
 
+    device = torch.device(config["device"])
+
+    print("Loading tokenizer...")
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
 
+    print("Getting dataloaders...")
     train_dataloader, val_dataloader, test_dataloader = get_dataloader(config=config)
-
-    model = build_bart_model(config=config, tokenizer=tokenizer)
 
     list_model_weight_files = get_list_weights_file_paths(config=config)
     if list_model_weight_files is not None:
-        state = torch.load(list_model_weight_files[-1])
-        model.load_state_dict(state["model_state_dict"])
+        states = torch.load(list_model_weight_files[-1])
+        required_keys = ["model_state_dict", "config"]
+        for key in required_keys:
+            if key not in states:
+                raise ValueError(f"Missing key {key} in model state dict")
     else:
         raise ValueError("No model found.")
 
-    rouge_scores = validate(
+    print("Building BART model...")
+    bart_config = states["config"]
+    model = build_bart_model(config=bart_config).to(device=device)
+    model.load_state_dict(states["model_state_dict"])
+
+    loss_fn = nn.CrossEntropyLoss(
+        ignore_index=tokenizer.convert_tokens_to_ids(SpecialToken.PAD),
+        label_smoothing=config["label_smoothing"],
+    ).to(device=device)
+
+    print("Evaluating model...")
+    test_stats = evaluate(
         model=model,
-        val_dataloader=val_dataloader,
-        config=config,
+        val_dataloader=test_dataloader,
+        tokenizer=tokenizer,
+        loss_fn=loss_fn,
+        device=device,
     )
+    test_rouge_scores = compute_dataset_rouge(
+        model=model,
+        dataset=test_dataloader.dataset,
+        tokenizer=tokenizer.tokenize,
+        seq_length=config["max_sequence_length"],
+        device=device,
+        beam_size=config["beam_size"],
+        log_examples=config["log_examples"],
+        logging_steps=config["logging_steps"],
+        use_stemmer=config["use_stemmer"],
+        rouge_keys=config["rouge_keys"],
+        accumulate=config["accumulate"],
+    )
+
+    metric_scores = test_stats.compute()
+
+    columns = metric_scores.keys() + test_rouge_scores.keys()
+    data = [[value] for value in metric_scores.values()] + [
+        [value] for value in test_rouge_scores.values()
+    ]
 
     df = write_to_csv(
-        columns=rouge_scores.keys(),
-        data=[[value] for value in rouge_scores.values()],
-        file_path=f"{config['statistic_dir']}/rouge_scores.csv",
+        columns=columns,
+        data=data,
+        file_path=f"{config['statistic_dir']}/metric_scores.csv",
     )
-
     print(df)
