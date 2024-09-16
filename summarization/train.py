@@ -129,6 +129,7 @@ def train(config: dict) -> None:
 
     training_config = TrainingConfig(
         device=device,
+        seq_length=config["seq_length"],
         initial_epoch=initial_epoch,
         initial_global_step=global_step,
         num_epochs=config["epochs"],
