@@ -4,7 +4,7 @@ import torch.nn as nn
 
 from torch.utils.tensorboard import SummaryWriter
 
-from bart.model import build_bart_model
+from bart.model import build_bart_model, FinetuneBartModelConfig
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
 from .trainer import Trainer, TrainingConfig
@@ -35,12 +35,37 @@ def train(config: dict) -> None:
 
     # Load tokenizer
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
+    bos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
+    pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
+    eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
 
     # Build BART model
-    bart_model = build_bart_model(
-        config=config,
-        tokenizer=tokenizer,
-    ).to(device=device)
+    bart_model_config = FinetuneBartModelConfig(
+        seq_length=config["max_sequence_length"],
+        device=config["device"],
+        vocab_size=tokenizer.vocab_size,
+        d_model=config["d_model"],
+        encoder_layers=config["encoder_layers"],
+        decoder_layers=config["decoder_layers"],
+        encoder_attention_heads=config["encoder_attention_heads"],
+        decoder_attention_heads=config["decoder_attention_heads"],
+        encoder_ffn_dim=config["encoder_ffn_dim"],
+        decoder_ffn_dim=config["decoder_ffn_dim"],
+        activation_function=config["activation_function"],
+        dropout=config["dropout"],
+        attention_dropout=config["attention_dropout"],
+        activation_dropout=config["activation_dropout"],
+        classifier_dropout=config["classifier_dropout"],
+        init_std=config["init_std"],
+        encoder_layerdrop=config["encoder_layerdrop"],
+        decoder_layerdrop=config["decoder_layerdrop"],
+        scale_embedding=config["scale_embedding"],
+        num_beams=config["num_beams"],
+        bos_token_id=bos_token_id,
+        pad_token_id=pad_token_id,
+        eos_token_id=eos_token_id,
+    )
+    bart_model = build_bart_model(config=bart_model_config).to(device=device)
 
     # Get dataloaders
     train_dataloader, val_dataloader, test_dataloader = get_dataloader(config=config)
@@ -124,6 +149,7 @@ def train(config: dict) -> None:
         tokenizer=tokenizer,
         loss_fn=loss_fn,
         config=training_config,
+        bart_config=bart_model_config,
         writer=writer,
     )
 

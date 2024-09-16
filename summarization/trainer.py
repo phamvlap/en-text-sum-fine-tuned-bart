@@ -9,7 +9,7 @@ from tqdm import tqdm
 from dataclasses import dataclass
 from typing import Literal
 
-from bart.model import FinetuneBartModel
+from bart.model import FinetuneBartModel, FinetuneBartModelConfig
 from bart.constants import SpecialToken, RougeKey
 from .utils.statistics import Statistics
 from .utils.eval import evaluate
@@ -47,6 +47,7 @@ class Trainer:
         tokenizer: BartTokenizer,
         loss_fn: nn.CrossEntropyLoss,
         config: TrainingConfig,
+        bart_config: FinetuneBartModelConfig,
         lr_scheduler: optim.lr_scheduler.LRScheduler | None = None,
         writer: SummaryWriter | None = None,
     ) -> None:
@@ -56,6 +57,7 @@ class Trainer:
         self.lr_scheduler = lr_scheduler
         self.pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
         self.config = config
+        self.bart_config = bart_config
         self.writer = writer
         self.train_stats = Statistics(
             vocab_size=tokenizer.vocab_size,
@@ -205,9 +207,10 @@ class Trainer:
         )
         obj = {
             "epoch": epoch,
+            "global_step": global_step,
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
-            "global_step": global_step,
+            "config": self.bart_config,
         }
         if self.lr_scheduler is not None:
             obj["lr_scheduler_state_dict"] = self.lr_scheduler.state_dict()
