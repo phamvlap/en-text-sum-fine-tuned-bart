@@ -21,11 +21,11 @@ from .utils.path import get_weights_file_path
 class TrainingConfig:
     device: torch.device
     seq_length: int
-    initial_epoch: int = 0
-    initial_global_step: int = 0
     num_epochs: int
     model_dir: str
     model_basename: str
+    initial_epoch: int = 0
+    initial_global_step: int = 0
     evaluating_steps: int = 1000
     beam_size: int | None = None
     log_examples: bool = True
