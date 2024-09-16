@@ -1,7 +1,6 @@
 import torch
 
 from bart.constants import SpecialToken, RougeKey
-from summarization.utils.path import join_path
 
 
 def get_config() -> dict:
@@ -12,10 +11,7 @@ def get_config() -> dict:
     config["base_dir"] = "trained"
 
     # Model configs
-    config["model_dir"] = join_path(
-        base_dir=config["base_dir"],
-        sub_path="models",
-    )
+    config["model_dir"] = f"{config['base_dir']}/models"
     config["model_basename"] = "bart_model_"
     config["model_config_file"] = "model_config_{0}.json"
 
@@ -36,9 +32,9 @@ def get_config() -> dict:
     config["text_tgt"] = "summary"
 
     # Tokenizer configs
-    config["tokenizer_train_ds_path"] = "dataset/train.csv"
-    config["tokenizer_dir"] = "tokenizer"
+    config["tokenizer_train_ds_path"] = "path/to/train/tokenizer/file.csv"
     config["tokenizer_bart_dir"] = "tokenizer-bart"
+    config["is_train_tokenizer"] = False
     config["special_tokens"] = [
         SpecialToken.BOS,
         SpecialToken.EOS,
@@ -53,8 +49,8 @@ def get_config() -> dict:
     config["show_progress"] = True
 
     # Dataloader configs
-    config["batch_size_train"] = 16
-    config["batch_size_val"] = 16
+    config["batch_size_train"] = 32
+    config["batch_size_val"] = 1
     config["batch_size_test"] = 1
 
     # Adam optimizer configs
@@ -78,7 +74,7 @@ def get_config() -> dict:
     config["log_dir"] = "logs"
 
     # BART configs
-    config["max_sequence_length"] = 512  # max length of input sequence
+    config["seq_length"] = 512  # max length of input sequence
     config["d_model"] = 1024  # dimension of hidden layers
     config["encoder_layers"] = 6  # number of encoder layers
     config["decoder_layers"] = 6  # number of decoder layers
@@ -86,12 +82,12 @@ def get_config() -> dict:
     config["decoder_attention_heads"] = 8  # number of decoder attention heads
     config["encoder_ffn_dim"] = 2048  # dimension of feedforward network in encoder
     config["decoder_ffn_dim"] = 2048  # dimension of feedforward network in decoder
-    config["activation_function"] = "relu"  # 'gelu', 'relu', 'silu' or 'gelu_new'
+    config["activation_function"] = "gelu"  # 'gelu', 'relu', 'silu' or 'gelu_new'
     config["dropout"] = 0.1  # dropout rate for individual layer
     config["attention_dropout"] = 0.1  # dropout rate for attention layer
     config["activation_dropout"] = 0.1  # dropout rate after activation function
     config["classifier_dropout"] = 0.1  # dropout rate for classifier
-    config["max_position_embeddings"] = config["max_sequence_length"]
+    config["max_position_embeddings"] = config["seq_length"]
     config["init_std"] = 0.02  # standard deviation for initializing weight parameters
     config["encoder_layerdrop"] = 0.2  # layer dropout rate for entire encoder layers
     config["decoder_layerdrop"] = 0.2  # layer dropout rate for entire decoder layers
@@ -109,16 +105,13 @@ def get_config() -> dict:
 
     # Compute Rouge Score configs
     config["log_examples"] = True
-    config["logging_steps"] = 100
+    config["logging_steps"] = 1000
 
     # Beam search configs
     config["beam_size"] = 3
 
     # Statistics result configs
-    config["statistic_dir"] = join_path(
-        base_dir=config["base_dir"],
-        sub_path="statistic",
-    )
+    config["statistic_dir"] = f"{config['base_dir']}/statistics"
 
     # Device
     config["device"] = "cuda" if torch.cuda.is_available() else "cpu"

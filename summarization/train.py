@@ -41,7 +41,7 @@ def train(config: dict) -> None:
 
     # Build BART model
     bart_model_config = FinetuneBartModelConfig(
-        seq_length=config["max_sequence_length"],
+        seq_length=config["seq_length"],
         device=config["device"],
         vocab_size=tokenizer.vocab_size,
         d_model=config["d_model"],

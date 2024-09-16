@@ -55,7 +55,7 @@ def test(config: dict) -> None:
         model=model,
         dataset=test_dataloader.dataset,
         tokenizer=tokenizer.tokenize,
-        seq_length=config["max_sequence_length"],
+        seq_length=config["seq_length"],
         device=device,
         beam_size=config["beam_size"],
         log_examples=config["log_examples"],

@@ -151,7 +151,7 @@ def get_dataloader(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
         tokenizer=tokenizer,
         text_src=config["text_src"],
         text_tgt=config["text_tgt"],
-        seq_length=config["max_sequence_length"],
+        seq_length=config["seq_length"],
     )
     val_dataset = get_summarization_dataset(
         data_files_path=config["data_files_path"],
@@ -159,7 +159,7 @@ def get_dataloader(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
         split="val",
         text_src=config["text_src"],
         text_tgt=config["text_tgt"],
-        seq_length=config["max_sequence_length"],
+        seq_length=config["seq_length"],
     )
     test_dataset = get_summarization_dataset(
         data_files_path=config["data_files_path"],
@@ -167,7 +167,7 @@ def get_dataloader(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
         split="test",
         text_src=config["text_src"],
         text_tgt=config["text_tgt"],
-        seq_length=config["max_sequence_length"],
+        seq_length=config["seq_length"],
     )
 
     batch_size_train = config["batch_size_train"]
