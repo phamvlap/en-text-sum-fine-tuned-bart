@@ -55,6 +55,7 @@ class Trainer:
         self.optimizer = optimizer
         self.loss_fn = loss_fn
         self.lr_scheduler = lr_scheduler
+        self.tokenizer = tokenizer
         self.pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
         self.config = config
         self.bart_config = bart_config
@@ -140,7 +141,7 @@ class Trainer:
                     if (global_step + 1) % self.config.evaluating_steps == 0:
                         eval_stats = evaluate(
                             model=self.model,
-                            val_dataloade=val_dataloader,
+                            val_dataloader=val_dataloader,
                             tokenizer=self.tokenizer,
                             loss_fn=self.loss_fn,
                             device=self.config.device,
@@ -174,7 +175,7 @@ class Trainer:
         self,
         step: int,
         eval_stats: Statistics,
-        rouge_score: dict,
+        rouge_score: dict[str, float],
     ) -> None:
         if self.writer is None:
             return
