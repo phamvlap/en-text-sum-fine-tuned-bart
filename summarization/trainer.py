@@ -103,7 +103,7 @@ class Trainer:
                     attention_mask=src_attention_mask,
                     decoder_input_ids=decoder_input,
                     decoder_attention_mask=tgt_attention_mask,
-                ).last_hidden_state
+                )
 
                 # logits (batch_size, seq_length, vocab_size)
                 # pred (batch_size, seq_length)
