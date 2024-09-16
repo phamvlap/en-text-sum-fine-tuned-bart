@@ -13,9 +13,11 @@ def load_dataset(path: str) -> pd.DataFrame:
 
 
 def preprocessing(config: dict) -> None:
-    raw_train_ds = load_dataset(path=config["raw_train_ds_path"])
-    raw_val_ds = load_dataset(path=config["raw_val_ds_path"])
-    raw_test_ds = load_dataset(path=config["raw_test_ds_path"])
+    raw_data_files_path = config["raw_data_files_path"]
+
+    raw_train_ds = load_dataset(path=raw_data_files_path["train"])
+    raw_val_ds = load_dataset(path=raw_data_files_path["val"])
+    raw_test_ds = load_dataset(path=raw_data_files_path["test"])
 
     features = [config["text_src"], config["text_tgt"]]
 
@@ -23,11 +25,12 @@ def preprocessing(config: dict) -> None:
     val_ds = clean_dataset(df=raw_val_ds, features=features)
     test_ds = clean_dataset(df=raw_test_ds, features=features)
 
+    data_files_path = config["data_files_path"]
     make_dir(dir_path=config["dataset_dir"])
 
-    train_ds.to_csv(config["train_ds_path"], index=False)
-    val_ds.to_csv(config["val_ds_path"], index=False)
-    test_ds.to_csv(config["test_ds_path"], index=False)
+    train_ds.to_csv(data_files_path["train"], index=False)
+    val_ds.to_csv(data_files_path["val"], index=False)
+    test_ds.to_csv(data_files_path["test"], index=False)
 
     print("Preprocessing dataset done!")
     print("Datasets saved at directory: {}".format(config["dataset_dir"]))

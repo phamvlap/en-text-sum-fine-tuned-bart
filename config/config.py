@@ -21,31 +21,17 @@ def get_config() -> dict:
 
     # Dataset configs
     config["dataset_dir"] = "dataset"
-    config["train_ds_path"] = join_path(
-        base_dir=config["dataset_dir"],
-        sub_path="train.csv",
-    )
-    config["val_ds_path"] = join_path(
-        base_dir=config["dataset_dir"],
-        sub_path="val.csv",
-    )
-    config["test_ds_path"] = join_path(
-        base_dir=config["dataset_dir"],
-        sub_path="test.csv",
-    )
-    config["raw_dataset_dir"] = "raw_dataset_dir"
-    config["raw_train_ds_path"] = join_path(
-        base_dir=config["raw_dataset_dir"],
-        sub_path="train.csv",
-    )
-    config["raw_val_ds_path"] = join_path(
-        base_dir=config["raw_dataset_dir"],
-        sub_path="val.csv",
-    )
-    config["raw_test_ds_path"] = join_path(
-        base_dir=config["raw_dataset_dir"],
-        sub_path="test.csv",
-    )
+    config["data_files_path"] = {
+        "train": f"{config['dataset_dir']}/train.csv",
+        "val": f"{config['dataset_dir']}/val.csv",
+        "test": f"{config['dataset_dir']}/test.csv",
+    }
+    config["raw_dataset_dir"] = "raw/dataset/dir"
+    config["raw_data_files_path"] = {
+        "train": f"{config['raw_dataset_dir']}/train.csv",
+        "val": f"{config['raw_dataset_dir']}/val.csv",
+        "test": f"{config['raw_dataset_dir']}/test.csv",
+    }
     config["text_src"] = "document"
     config["text_tgt"] = "summary"
 
@@ -120,6 +106,10 @@ def get_config() -> dict:
     ]
     config["use_stemmer"] = True
     config["accumulate"] = "best"  # 'best' | 'avg'
+
+    # Compute Rouge Score configs
+    config["log_examples"] = True
+    config["logging_steps"] = 100
 
     # Beam search configs
     config["beam_size"] = 3
