@@ -187,7 +187,6 @@ def evaluate(
         encoder_input (batch_size, seq_length)
         decoder_input (batch_size, seq_length)
         label (batch_size, seq_length)
-        decoder_output (batch_size, seq_length, d_model)
         logits (batch_size, seq_length, vocab_size)
         pred (batch_size, seq_length)
         """
@@ -204,21 +203,20 @@ def evaluate(
             dtype=torch.int64,
         )
 
-        decoder_output = model(
+        logits = model(
             input_ids=encoder_input,
             attention_mask=src_attention_mask,
             decoder_input_ids=decoder_input,
             decoder_attention_mask=tgt_attention_mask,
-        ).last_hidden_state
+        )
 
-        logits = model.out(decoder_output)
         loss = loss_fn(logits.view(-1, logits.size(-1)), label.view(-1))
         pred = torch.argmax(logits, dim=-1)
 
         eval_stats.update(
             loss=loss.item(),
             pred=pred.view(-1),
-            label=label.view(-1),
+            target=label.view(-1),
         )
 
         batch_iterator.set_postfix(
