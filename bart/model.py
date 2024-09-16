@@ -18,6 +18,9 @@ class FinetuneBartModelConfig:
     decoder_attention_heads: int
     encoder_ffn_dim: int
     decoder_ffn_dim: int
+    bos_token_id: int
+    pad_token_id: int
+    eos_token_id: int
     activation_function: Literal["gelu", "relu", "silu", "gelu_new"] = "gelu"
     dropout: float = 0.1
     attention_dropout: float = 0.1
@@ -28,9 +31,6 @@ class FinetuneBartModelConfig:
     decoder_layerdrop: float = 0.2
     scale_embedding: bool = True
     num_beams: int = 4
-    bos_token_id: int
-    pad_token_id: int
-    eos_token_id: int
 
 
 class FinetuneBartModel(nn.Module):
