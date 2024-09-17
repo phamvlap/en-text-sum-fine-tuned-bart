@@ -24,6 +24,8 @@ def greedy_search_decode(
     eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
+    source = source.to(device=device)
+
     # src_attention_mask (1, seq_length)
     src_attention_mask = (source != pad_token_id).type_as(source).to(device=device)
     # encoder_output (1, seq_length, d_model)
@@ -86,6 +88,8 @@ def beam_search_decode(
     bos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
     eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
+
+    source = source.to(device=device)
 
     # src_attention_mask (1, seq_length)
     src_attention_mask = (source != pad_token_id).type_as(source).to(device=device)
