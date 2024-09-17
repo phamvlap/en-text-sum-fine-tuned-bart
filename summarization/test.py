@@ -73,7 +73,7 @@ def test(config: dict) -> None:
 
     metric_scores = test_stats.compute()
 
-    columns = metric_scores.keys() + test_rouge_scores.keys()
+    columns = list(metric_scores.keys()) + list(test_rouge_scores.keys())
     data = [[value] for value in metric_scores.values()] + [
         [value] for value in test_rouge_scores.values()
     ]

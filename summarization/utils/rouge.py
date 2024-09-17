@@ -4,7 +4,7 @@ from torch import Tensor
 from torchmetrics.text.rouge import ROUGEScore
 from transformers import BartTokenizer
 from tqdm import tqdm
-from typing import Literal
+from typing import Literal, Callable
 
 from bart.model import FinetuneBartModel
 from ..summarization_dataset import SummarizationDataset
@@ -17,8 +17,8 @@ class RougeScorer:
         self,
         rouge_keys: list[str] | tuple[str] | None = None,
         use_stemmer: bool = True,
-        normalizer_function: callable = None,
-        tokenizer_function: callable = None,
+        normalizer_function: Callable | None = None,
+        tokenizer_function: Callable | None = None,
         accumulate: Literal["best", "avg"] = "best",
     ) -> None:
         all_rouge_keys = (
@@ -40,11 +40,11 @@ class RougeScorer:
         self,
         preds: list[str] | str,
         targets: list[str] | str,
-    ) -> dict[str, float]:
+    ) -> dict[str, Tensor]:
         return self.rouge_scorer(preds, targets)
 
 
-def format_rouge_score(pure_rouge_score: dict[str, float]) -> dict[str, float]:
+def format_rouge_score(pure_rouge_score: dict[str, Tensor]) -> dict[str, float]:
     rouge_score = {}
     for key in pure_rouge_score.keys():
         rouge_type = key.split("_")[0].replace("rouge", "")
@@ -69,7 +69,7 @@ def compute_dataset_rouge(
     logging_steps: int = 100,
     use_stemmer: bool = True,
     rouge_keys: list[str] | tuple[str] | None = None,
-    normalizer_function: callable = None,
+    normalizer_function: Callable | None = None,
     accumulate: Literal["best", "avg"] = "best",
 ) -> dict[str, float]:
     pred_text_list = []
@@ -104,7 +104,7 @@ def compute_dataset_rouge(
         else:
             pred_tokens = greedy_search_decode(
                 model=model,
-                soruce=encoder_input,
+                source=encoder_input,
                 tokenizer=tokenizer,
                 seq_length=seq_length,
                 device=device,

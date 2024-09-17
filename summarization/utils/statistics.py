@@ -18,7 +18,7 @@ class Statistics:
         targets: list[np.ndarray] | None = None,
         average: Optional[Literal["micro", "macro", "weighted"]] = "weighted",
         beta: float = 0.5,
-        ignore_index: int = None,
+        ignore_index: int | None = None,
     ) -> None:
         self.vocab_size = vocab_size
         self.device = device
@@ -85,7 +85,7 @@ class Statistics:
     ) -> None:
         stats = self.compute()
 
-        for metric_key, metric_value in stats.item():
+        for metric_key, metric_value in stats.items():
             writer.add_scalar(f"{mode}/{metric_key}", metric_value, step)
 
     def reset(self) -> None:
