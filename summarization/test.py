@@ -21,7 +21,13 @@ def test(config: dict) -> None:
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
 
     print("Getting dataloaders...")
-    train_dataloader, val_dataloader, test_dataloader = get_dataloader(config=config)
+    test_dataloader = get_dataloader(
+        tokenizer=tokenizer,
+        split="test",
+        batch_size=config["batch_size_test"],
+        shuffle=False,
+        config=config,
+    )
 
     list_model_weight_files = get_list_weights_file_paths(config=config)
     if list_model_weight_files is not None:

@@ -138,7 +138,7 @@ class Trainer:
                 if self.writer is not None:
                     self.writer.add_scalar("train/train_loss", loss.item(), global_step)
 
-                    if (global_step + 1) % self.config.evaluating_steps == 0:
+                    if global_step % self.config.evaluating_steps == 0:
                         eval_stats = evaluate(
                             model=self.model,
                             val_dataloader=val_dataloader,

@@ -50,8 +50,8 @@ def get_config() -> dict:
 
     # Dataloader configs
     config["batch_size_train"] = 32
-    config["batch_size_val"] = 1
-    config["batch_size_test"] = 1
+    config["batch_size_val"] = 16
+    config["batch_size_test"] = 4
 
     # Adam optimizer configs
     config["lr"] = 0.5

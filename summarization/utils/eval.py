@@ -174,7 +174,7 @@ def evaluate(
     device: torch.device,
 ) -> Statistics:
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
-    model = model.to(device=device)
+    model.to(device=device)
 
     # Set model to evaluation mode
     model.eval()

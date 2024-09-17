@@ -10,7 +10,7 @@ from .summarization_dataset import get_dataloader
 from .trainer import Trainer, TrainingConfig
 from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
-from .utils.mix import noam_lr
+from .utils.mix import noam_lr, count_parameters
 from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_paths
 
 
@@ -37,7 +37,20 @@ def train(config: dict) -> None:
     eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
 
     print("Loading dataloaders...")
-    train_dataloader, val_dataloader, test_dataloader = get_dataloader(config=config)
+    train_dataloader = get_dataloader(
+        tokenizer=tokenizer,
+        split="train",
+        batch_size=config["batch_size_train"],
+        shuffle=True,
+        config=config,
+    )
+    val_dataloader = get_dataloader(
+        tokenizer=tokenizer,
+        split="val",
+        batch_size=config["batch_size_val"],
+        shuffle=True,
+        config=config,
+    )
 
     initial_epoch = 0
     global_step = 0
@@ -110,6 +123,8 @@ def train(config: dict) -> None:
             initial_epoch = states["epoch"] + 1
         if "global_step" in states:
             global_step = states["global_step"]
+
+    print(f"The model has {count_parameters(bart_model):,} trainable parameters.")
 
     # Optimizer
     optimizer = optim.Adam(

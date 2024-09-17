@@ -9,7 +9,6 @@ from typing import Literal
 
 from bart.constants import SpecialToken
 from .preprocessing import load_dataset
-from .utils.tokenizer import load_tokenizer
 
 
 class SummarizationDataset(Dataset):
@@ -142,59 +141,28 @@ def collate_fn(batch: list, tokenizer: BartTokenizer) -> dict:
     }
 
 
-def get_dataloader(config: dict) -> tuple[DataLoader, DataLoader, DataLoader]:
-    tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
-
-    train_dataset = get_summarization_dataset(
+def get_dataloader(
+    tokenizer: BartTokenizer,
+    split: Literal["train", "val", "test"],
+    batch_size: int,
+    shuffle: bool,
+    config: dict,
+) -> DataLoader:
+    dataset = get_summarization_dataset(
         data_files_path=config["data_files_path"],
-        split="train",
+        split=split,
         tokenizer=tokenizer,
         text_src=config["text_src"],
         text_tgt=config["text_tgt"],
         seq_length=config["seq_length"],
     )
-    val_dataset = get_summarization_dataset(
-        data_files_path=config["data_files_path"],
-        tokenizer=tokenizer,
-        split="val",
-        text_src=config["text_src"],
-        text_tgt=config["text_tgt"],
-        seq_length=config["seq_length"],
-    )
-    test_dataset = get_summarization_dataset(
-        data_files_path=config["data_files_path"],
-        tokenizer=tokenizer,
-        split="test",
-        text_src=config["text_src"],
-        text_tgt=config["text_tgt"],
-        seq_length=config["seq_length"],
+
+    dataloader = DataLoader(
+        dataset=dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+        collate_fn=lambda batch: collate_fn(batch=batch, tokenizer=tokenizer),
+        pin_memory=True,
     )
 
-    batch_size_train = config["batch_size_train"]
-    batch_size_val = config["batch_size_val"]
-    batch_size_test = config["batch_size_test"]
-
-    train_dataloader = DataLoader(
-        dataset=train_dataset,
-        batch_size=batch_size_train,
-        shuffle=True,
-        collate_fn=lambda batch: collate_fn(batch=batch, tokenizer=tokenizer),
-    )
-    val_dataloader = DataLoader(
-        dataset=val_dataset,
-        batch_size=batch_size_val,
-        shuffle=True,
-        collate_fn=lambda batch: collate_fn(batch=batch, tokenizer=tokenizer),
-    )
-    test_dataloader = DataLoader(
-        dataset=test_dataset,
-        batch_size=batch_size_test,
-        shuffle=True,
-        collate_fn=lambda batch: collate_fn(batch=batch, tokenizer=tokenizer),
-    )
-
-    return (
-        train_dataloader,
-        val_dataloader,
-        test_dataloader,
-    )
+    return dataloader

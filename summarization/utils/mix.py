@@ -1,5 +1,6 @@
 import types
 import pandas as pd
+import torch.nn as nn
 
 from pathlib import Path
 from .path import make_dir
@@ -47,3 +48,7 @@ def get_constants_from_module(module: object) -> dict:
             normal_constants[key] = constants[key]
 
     return normal_constants
+
+
+def count_parameters(model: nn.Module) -> int:
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
