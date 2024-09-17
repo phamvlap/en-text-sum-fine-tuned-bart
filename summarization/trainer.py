@@ -37,6 +37,7 @@ class TrainingConfig:
     )
     use_stemmer: bool = True
     accumulate: Literal["best", "avg"] = "best"
+    max_grad_norm: float | None = None
 
 
 class Trainer:
@@ -49,6 +50,7 @@ class Trainer:
         config: TrainingConfig,
         bart_config: FinetuneBartModelConfig,
         lr_scheduler: optim.lr_scheduler.LRScheduler | None = None,
+        scaler_state_dict: dict | None = None,
         writer: SummaryWriter | None = None,
     ) -> None:
         self.model = model
@@ -65,6 +67,12 @@ class Trainer:
             ignore_index=self.pad_token_id,
             device=config.device,
         )
+        # Automatic Mixed Precision
+        self.scaler = None
+        if torch.cuda.is_available():
+            self.scaler = torch.amp.GradScaler("cuda")
+            if scaler_state_dict is not None:
+                self.scaler.load_state_dict(scaler_state_dict)
 
     def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader) -> None:
         # Set model to train mode
@@ -99,29 +107,44 @@ class Trainer:
                     dtype=torch.int64,
                 )
 
-                # logits (batch_size, seq_length, vocab_size)
-                logits = self.model(
-                    input_ids=encoder_input,
-                    attention_mask=src_attention_mask,
-                    decoder_input_ids=decoder_input,
-                    decoder_attention_mask=tgt_attention_mask,
-                )
+                with torch.autocast(
+                    device_type=self.config.device.type,
+                    dtype=torch.float16,
+                    enabled=torch.cuda.is_available(),
+                ):
+                    # logits (batch_size, seq_length, vocab_size)
+                    logits = self.model(
+                        input_ids=encoder_input,
+                        attention_mask=src_attention_mask,
+                        decoder_input_ids=decoder_input,
+                        decoder_attention_mask=tgt_attention_mask,
+                    )
+                    pred = torch.argmax(logits, dim=-1)
 
-                pred = torch.argmax(logits, dim=-1)
+                    # Compute loss
+                    loss = self.loss_fn(
+                        logits.view(-1, logits.size(-1)), label.view(-1)
+                    )
 
-                # Compute loss
-                loss = self.loss_fn(logits.view(-1, logits.size(-1)), label.view(-1))
-                batch_iterator.set_postfix(
-                    {
-                        "loss": f"{loss.item():.4f}",
-                    }
-                )
-
-                # Backpropagation
-                loss.backward()
-
-                # Update weights and learning rate
-                self.optimizer.step()
+                if torch.cuda.is_available() and self.scaler is not None:
+                    # Backpropagation
+                    self.scaler.scale(loss).backward()
+                    # Clip gradients norm
+                    if (
+                        self.config.max_grad_norm is not None
+                        and self.config.max_grad_norm > 0
+                    ):
+                        self.scaler.unscale_(self.optimizer)
+                        torch.nn.utils.clip_grad_norm_(
+                            parameters=self.model.parameters(),
+                            max_norm=self.config.max_grad_norm,
+                        )
+                    # Update weights and learning rate
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                else:
+                    loss.backward()
+                    self.optimizer.step()
 
                 if self.lr_scheduler is not None:
                     self.lr_scheduler.step()
@@ -134,6 +157,7 @@ class Trainer:
                     target=label.view(-1),
                 )
 
+                batch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
                 global_step += 1
 
                 if self.writer is not None:
@@ -211,6 +235,8 @@ class Trainer:
             "optimizer_state_dict": self.optimizer.state_dict(),
             "config": self.bart_config,
         }
+        if torch.cuda.is_available() and self.scaler is not None:
+            obj["scaler_state_dict"] = self.scaler.state_dict()
         if self.lr_scheduler is not None:
             obj["lr_scheduler_state_dict"] = self.lr_scheduler.state_dict()
 

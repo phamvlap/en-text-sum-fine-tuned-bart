@@ -72,6 +72,7 @@ def get_config() -> dict:
     config["preload"] = "latest"
     config["evaluating_steps"] = 1000
     config["log_dir"] = "logs"
+    config["max_grad_norm"] = 1.0
 
     # BART configs
     config["seq_length"] = 512  # max length of input sequence

@@ -56,6 +56,7 @@ def train(config: dict) -> None:
     global_step = 0
     model_filename = None
     states = None
+    scaler_state_dict = None
 
     if config["preload"] == "latest":
         list_weights_file_paths = get_list_weights_file_paths(config=config)
@@ -123,6 +124,8 @@ def train(config: dict) -> None:
             initial_epoch = states["epoch"] + 1
         if "global_step" in states:
             global_step = states["global_step"]
+        if "scaler_state_dict" in states:
+            scaler_state_dict = states["scaler_state_dict"]
 
     print(f"The model has {count_parameters(bart_model):,} trainable parameters.")
 
@@ -173,6 +176,7 @@ def train(config: dict) -> None:
         logging_steps=config["logging_steps"],
         use_stemmer=config["use_stemmer"],
         accumulate=config["accumulate"],
+        max_grad_norm=config["max_grad_norm"],
     )
 
     trainer = Trainer(
@@ -183,6 +187,7 @@ def train(config: dict) -> None:
         loss_fn=loss_fn,
         config=training_config,
         bart_config=bart_model_config,
+        scaler_state_dict=scaler_state_dict,
         writer=writer,
     )
 
