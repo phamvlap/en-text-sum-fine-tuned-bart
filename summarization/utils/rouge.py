@@ -47,10 +47,11 @@ class RougeScorer:
 def format_rouge_score(pure_rouge_score: dict[str, float]) -> dict[str, float]:
     rouge_score = {}
     for key in pure_rouge_score.keys():
-        rouge_key = f"ROUGE@{key.replace('rouge', '')}"
+        rouge_type = key.split("_")[0].replace("rouge", "")
+        rouge_key = f"ROUGE@{rouge_type}"
         if rouge_key not in rouge_score.keys():
             rouge_score[rouge_key] = round(
-                pure_rouge_score[f"{key}_fmeasure"].item() * 100,
+                pure_rouge_score[f"rouge{rouge_type}_fmeasure"].item() * 100,
                 2,
             )
     return rouge_score
@@ -85,7 +86,7 @@ def compute_dataset_rouge(
         accumulate=accumulate,
     )
 
-    dataset_iterator = tqdm(dataset, desc="Computing ROUGE Score ...")
+    dataset_iterator = tqdm(dataset, desc="Computing ROUGE Score...")
 
     for idx, data in enumerate(dataset_iterator):
         encoder_input = data["src"]
