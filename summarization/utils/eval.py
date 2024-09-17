@@ -24,7 +24,8 @@ def greedy_search_decode(
     eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
-    source = source.to(device=device)
+    # source (1, seq_length)
+    source = source.unsqueeze(dim=0).to(device=device)
 
     # src_attention_mask (1, seq_length)
     src_attention_mask = (source != pad_token_id).type_as(source).to(device=device)
@@ -32,8 +33,9 @@ def greedy_search_decode(
     encoder_output = model.encode(
         input_ids=source,
         attention_mask=src_attention_mask,
-    ).last_hidden_state
+    )
 
+    # decoder_input (1, 1)
     decoder_input = (
         torch.empty(1, 1).fill_(value=bos_token_id).type_as(source).to(device=device)
     )
@@ -48,7 +50,7 @@ def greedy_search_decode(
             attention_mask=decoder_attention_mask,
             encoder_hidden_states=encoder_output,
             encoder_attention_mask=src_attention_mask,
-        ).last_hidden_state
+        )
 
         logits = model.out(decoder_output[:, -1, :])  # logits (1, vocab_size)
 
@@ -89,7 +91,8 @@ def beam_search_decode(
     eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
-    source = source.to(device=device)
+    # source (1, seq_length)
+    source = source.unsqueeze(dim=0).to(device=device)
 
     # src_attention_mask (1, seq_length)
     src_attention_mask = (source != pad_token_id).type_as(source).to(device=device)
@@ -97,7 +100,7 @@ def beam_search_decode(
     encoder_output = model.encode(
         input_ids=source,
         attention_mask=src_attention_mask,
-    ).last_hidden_state
+    )
 
     # Initialize decoder input with only <s> token (1, 1)
     decoder_input = (
@@ -133,7 +136,7 @@ def beam_search_decode(
                 attention_mask=decoder_attention_mask,
                 encoder_hidden_states=encoder_output,
                 encoder_attention_mask=src_attention_mask,
-            ).last_hidden_state
+            )
 
             # Get the last token logits
             # logits (1, vocab_size)
@@ -155,6 +158,7 @@ def beam_search_decode(
                 next_token = topk_indices[0][i].unsqueeze(dim=0).unsqueeze(dim=0)
                 next_token_score = topk_probs[0][i].item()
 
+                # cand (1, cand.size(1))
                 new_candidate = torch.cat([cand, next_token], dim=1)
 
                 new_candidates.append((new_candidate, score + next_token_score))

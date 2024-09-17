@@ -46,6 +46,14 @@ class FinetuneBartModel(nn.Module):
         logits = self.proj(out.last_hidden_state)
         return logits
 
+    """"
+    args:
+        input_ids (batch_size, seq_length)
+        attention_mask (batch_size, seq_length)
+    return:
+        tensor (batch_size, seq_length, d_model)
+    """
+
     def encode(
         self,
         input_ids: LongTensor,
@@ -54,7 +62,17 @@ class FinetuneBartModel(nn.Module):
         return self.bart_model.encoder(
             input_ids=input_ids,
             attention_mask=attention_mask,
-        )
+        ).last_hidden_state
+
+    """"
+    args:
+        input_ids (batch_size, seq_length)
+        attention_mask (batch_size, seq_length)
+        encoder_hidden_states (batch_size, encoder_seq_length, d_model)
+        encoder_attention_mask (batch_size, encoder_seq_length)
+    return:
+        tensor (batch_size, seq_length, d_model)
+    """
 
     def decode(
         self,
@@ -68,7 +86,7 @@ class FinetuneBartModel(nn.Module):
             attention_mask=attention_mask,
             encoder_hidden_states=encoder_hidden_states,
             encoder_attention_mask=encoder_attention_mask,
-        )
+        ).last_hidden_state
 
     def out(self, x: Tensor) -> Tensor:
         return self.proj(x)
