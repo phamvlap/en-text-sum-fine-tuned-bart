@@ -139,9 +139,19 @@ def calc_accuracy_recall_precision_f1beta(
         beta=beta,
     ).to(device)
 
-    accuracy_score = accuracy(preds, targets)
-    recall_score = recall(preds, targets)
-    precision_score = precision(preds, targets)
-    f_beta_score = f_beta(preds, targets)
+    if isinstance(preds, np.ndarray):
+        t_preds = torch.from_numpy(preds)
+    if isinstance(targets, np.ndarray):
+        t_targets = torch.from_numpy(targets)
 
-    return accuracy_score, recall_score, precision_score, f_beta_score
+    accuracy_score = accuracy(t_preds, t_targets)
+    recall_score = recall(t_preds, t_targets)
+    precision_score = precision(t_preds, t_targets)
+    f_beta_score = f_beta(t_preds, t_targets)
+
+    return (
+        accuracy_score.item(),
+        recall_score.item(),
+        precision_score.item(),
+        f_beta_score.item(),
+    )
