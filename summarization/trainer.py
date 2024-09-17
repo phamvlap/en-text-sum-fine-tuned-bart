@@ -63,6 +63,7 @@ class Trainer:
         self.train_stats = Statistics(
             vocab_size=tokenizer.vocab_size,
             ignore_index=self.pad_token_id,
+            device=config.device,
         )
 
     def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader) -> None:

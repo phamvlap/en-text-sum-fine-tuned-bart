@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from typing import Literal, Optional
 from torch import Tensor
@@ -10,6 +11,7 @@ class Statistics:
     def __init__(
         self,
         vocab_size: int,
+        device: torch.device,
         num_batchs: int = 0,
         loss: float = 0.0,
         preds: list[np.ndarray] | None = None,
@@ -19,6 +21,7 @@ class Statistics:
         ignore_index: int = None,
     ) -> None:
         self.vocab_size = vocab_size
+        self.device = device
         self.num_batchs = num_batchs
         self.loss = loss
         self.preds = preds if preds is not None else []
@@ -63,6 +66,7 @@ class Statistics:
             average=self.average,
             beta=self.beta,
             ignore_index=self.ignore_index,
+            device=self.device,
         )
 
         return {
@@ -105,6 +109,7 @@ def calc_accuracy_recall_precision_f1beta(
     preds: np.ndarray,
     targets: np.ndarray,
     ignore_index: int,
+    device: torch.device,
     average: Optional[Literal["micro", "macro", "weighted"]] = "weighted",
     beta: float = 0.5,
 ) -> tuple[float, float, float, float]:
@@ -113,26 +118,26 @@ def calc_accuracy_recall_precision_f1beta(
         average=average,
         num_classes=vocab_size,
         ignore_index=ignore_index,
-    )
+    ).to(device)
     recall = Recall(
         task="multiclass",
         average=average,
         num_classes=vocab_size,
         ignore_index=ignore_index,
-    )
+    ).to(device)
     precision = Precision(
         task="multiclass",
         average=average,
         num_classes=vocab_size,
         ignore_index=ignore_index,
-    )
+    ).to(device)
     f_beta = FBetaScore(
         task="multiclass",
         average=average,
         num_classes=vocab_size,
         ignore_index=ignore_index,
         beta=beta,
-    )
+    ).to(device)
 
     accuracy_score = accuracy(preds, targets)
     recall_score = recall(preds, targets)

@@ -186,6 +186,7 @@ def evaluate(
     eval_stats = Statistics(
         vocab_size=tokenizer.vocab_size,
         ignore_index=pad_token_id,
+        device=device,
     )
 
     batch_iterator = tqdm(val_dataloader, desc="Evaluating model ...")
