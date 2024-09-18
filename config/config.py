@@ -22,14 +22,14 @@ def get_config() -> dict:
         "val": f"{config['dataset_dir']}/val.csv",
         "test": f"{config['dataset_dir']}/test.csv",
     }
-    config["raw_dataset_dir"] = "raw/dataset/dir"
-    config["raw_data_files_path"] = {
-        "train": f"{config['raw_dataset_dir']}/train.csv",
-        "val": f"{config['raw_dataset_dir']}/val.csv",
-        "test": f"{config['raw_dataset_dir']}/test.csv",
-    }
+    config["raw_data_file_path"] = "path/to/raw/data/file.csv"
     config["text_src"] = "document"
     config["text_tgt"] = "summary"
+    config["train_size"] = 0.75
+    config["val_size"] = 0.1
+    config["test_size"] = 0.15
+    config["is_sampling"] = False
+    config["num_samples"] = 1000
 
     # Tokenizer configs
     config["tokenizer_train_ds_path"] = "path/to/train/tokenizer/file.csv"

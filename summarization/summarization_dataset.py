@@ -8,7 +8,7 @@ from transformers import BartTokenizer
 from typing import Literal
 
 from bart.constants import SpecialToken
-from .preprocessing import load_dataset
+from .preprocess import load_dataset
 
 
 class SummarizationDataset(Dataset):

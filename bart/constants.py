@@ -1,3 +1,6 @@
+DEFAULT_TRAIN_VAL_TEST_RATIO = (0.75, 0.1, 0.15)
+
+
 class SpecialToken:
     BOS = "<s>"  # begining of sentence
     EOS = "</s>"  # end of sentence
