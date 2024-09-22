@@ -62,11 +62,7 @@ class Trainer:
         self.config = config
         self.bart_config = bart_config
         self.writer = writer
-        self.train_stats = Statistics(
-            vocab_size=tokenizer.vocab_size,
-            ignore_index=self.pad_token_id,
-            device=config.device,
-        )
+        self.train_stats = Statistics()
         # Automatic Mixed Precision
         self.scaler = None
         if torch.cuda.is_available():

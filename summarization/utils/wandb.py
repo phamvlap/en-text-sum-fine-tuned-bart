@@ -13,6 +13,7 @@ class WandbWriter:
     ) -> None:
         self.project = project
         self.config = config
+        wandb.login()
         wandb.init(
             project=self.project,
             config=self.config,

@@ -181,11 +181,7 @@ def evaluate(
     # Set model to evaluation mode
     model.eval()
 
-    eval_stats = Statistics(
-        vocab_size=tokenizer.vocab_size,
-        ignore_index=pad_token_id,
-        device=device,
-    )
+    eval_stats = Statistics()
 
     print("Evaluating model...")
 
