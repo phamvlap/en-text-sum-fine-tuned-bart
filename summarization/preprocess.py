@@ -3,7 +3,6 @@ import pandas as pd
 from pathlib import Path
 
 from bart.constants import DEFAULT_TRAIN_VAL_TEST_RATIO
-from .train_tokenizer import train_tokenizer
 from .utils.tokenizer import load_tokenizer
 from .utils.dataset import (
     clean_dataset,
@@ -69,8 +68,6 @@ def preprocess(config: dict) -> None:
 
     tokenizer = None
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
-    if tokenizer is None:
-        tokenizer = train_tokenizer(config=config)
 
     features = [config["text_src"], config["text_tgt"]]
     cleaned_df = clean_dataset(df=raw_df, features=features)
