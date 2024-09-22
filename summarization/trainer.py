@@ -54,6 +54,7 @@ class Trainer:
         writer: Optional[WandbWriter] = None,
     ) -> None:
         self.model = model
+        self.compiled_model = torch.compile(self.model)
         self.optimizer = optimizer
         self.loss_fn = loss_fn
         self.lr_scheduler = lr_scheduler
@@ -72,7 +73,7 @@ class Trainer:
 
     def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader) -> None:
         # Set model to train mode
-        self.model.train()
+        self.compiled_model.train()
 
         global_step = self.config.initial_global_step
 
@@ -109,7 +110,7 @@ class Trainer:
                     enabled=torch.cuda.is_available(),
                 ):
                     # logits (batch_size, seq_length, vocab_size)
-                    logits = self.model(
+                    logits = self.compiled_model(
                         input_ids=encoder_input,
                         attention_mask=src_attention_mask,
                         decoder_input_ids=decoder_input,
@@ -131,7 +132,7 @@ class Trainer:
                     ):
                         self.scaler.unscale_(self.optimizer)
                         torch.nn.utils.clip_grad_norm_(
-                            parameters=self.model.parameters(),
+                            parameters=self.compiled_model.parameters(),
                             max_norm=self.config.max_grad_norm,
                         )
                     # Update weights and learning rate
@@ -161,14 +162,14 @@ class Trainer:
 
                     if global_step % self.config.evaluating_steps == 0:
                         eval_stats = evaluate(
-                            model=self.model,
+                            model=self.compiled_model,
                             val_dataloader=val_dataloader,
                             tokenizer=self.tokenizer,
                             loss_fn=self.loss_fn,
                             device=self.config.device,
                         )
                         rouge_score = compute_dataset_rouge(
-                            model=self.model,
+                            model=self.compiled_model,
                             dataset=val_dataloader.dataset,
                             tokenizer=self.tokenizer,
                             seq_length=self.config.seq_length,
@@ -236,7 +237,7 @@ class Trainer:
         checkpoint_states = {
             "epoch": epoch,
             "global_step": global_step,
-            "model_state_dict": self.model.state_dict(),
+            "model_state_dict": self.compiled_model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "config": self.bart_config,
         }
