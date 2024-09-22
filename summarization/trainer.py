@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 from transformers import BartTokenizer
 from tqdm import tqdm
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
 
 from bart.model import FinetuneBartModel, FinetuneBartModelConfig
 from bart.constants import SpecialToken, RougeKey
@@ -27,7 +27,7 @@ class TrainingConfig:
     initial_epoch: int = 0
     initial_global_step: int = 0
     evaluating_steps: int = 1000
-    beam_size: int | None = None
+    beam_size: Optional[int] = None
     log_examples: bool = True
     logging_steps: int = 100
     rouge_keys: list[str] | tuple[str] = (
@@ -37,7 +37,7 @@ class TrainingConfig:
     )
     use_stemmer: bool = True
     accumulate: Literal["best", "avg"] = "best"
-    max_grad_norm: float | None = None
+    max_grad_norm: Optional[float] = None
 
 
 class Trainer:
@@ -49,9 +49,9 @@ class Trainer:
         loss_fn: nn.CrossEntropyLoss,
         config: TrainingConfig,
         bart_config: FinetuneBartModelConfig,
-        lr_scheduler: optim.lr_scheduler.LRScheduler | None = None,
-        scaler_state_dict: dict | None = None,
-        writer: WandbWriter | None = None,
+        lr_scheduler: Optional[optim.lr_scheduler.LRScheduler] = None,
+        scaler_state_dict: Optional[dict] = None,
+        writer: Optional[WandbWriter] = None,
     ) -> None:
         self.model = model
         self.optimizer = optimizer
@@ -186,8 +186,6 @@ class Trainer:
                             eval_stats=eval_stats,
                             rouge_score=rouge_score,
                         )
-
-                    self.writer.flush()
 
             # Save model
             self._save_model(global_step=global_step, epoch=epoch)

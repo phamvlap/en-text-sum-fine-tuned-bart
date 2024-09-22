@@ -1,6 +1,7 @@
 import pandas as pd
 
 from pathlib import Path
+from typing import Optional
 
 from bart.constants import DEFAULT_TRAIN_VAL_TEST_RATIO
 from .utils.tokenizer import load_tokenizer
@@ -21,9 +22,9 @@ def load_dataset(path: str) -> pd.DataFrame:
 
 def train_val_test_split(
     df: pd.DataFrame,
-    train_size: float | None = None,
-    val_size: float | None = None,
-    test_size: float | None = None,
+    train_size: Optional[float] = None,
+    val_size: Optional[float] = None,
+    test_size: Optional[float] = None,
     shuffle: bool = True,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     if train_size is None and val_size is None and test_size is None:

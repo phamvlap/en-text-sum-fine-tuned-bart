@@ -3,7 +3,7 @@ import torch
 from torch import Tensor
 from torchmetrics.text.rouge import ROUGEScore
 from transformers import BartTokenizer
-from typing import Literal, Callable
+from typing import Literal, Callable, Optional
 
 from bart.model import FinetuneBartModel
 from ..summarization_dataset import SummarizationDataset
@@ -14,10 +14,10 @@ from .eval import greedy_search_decode, beam_search_decode
 class RougeScorer:
     def __init__(
         self,
-        rouge_keys: list[str] | tuple[str] | None = None,
+        rouge_keys: Optional[list[str] | tuple[str]] = None,
         use_stemmer: bool = True,
-        normalizer_function: Callable | None = None,
-        tokenizer_function: Callable | None = None,
+        normalizer_function: Optional[Callable] = None,
+        tokenizer_function: Optional[Callable] = None,
         accumulate: Literal["best", "avg"] = "best",
     ) -> None:
         all_rouge_keys = (
@@ -63,12 +63,12 @@ def compute_dataset_rouge(
     tokenizer: BartTokenizer,
     seq_length: int,
     device: torch.device,
-    beam_size: int | None = None,
+    beam_size: Optional[int] = None,
     log_examples: bool = True,
     logging_steps: int = 100,
     use_stemmer: bool = True,
-    rouge_keys: list[str] | tuple[str] | None = None,
-    normalizer_function: Callable | None = None,
+    rouge_keys: Optional[list[str] | tuple[str]] = None,
+    normalizer_function: Optional[Callable] = None,
     accumulate: Literal["best", "avg"] = "best",
 ) -> dict[str, float]:
     pred_text_list = []
