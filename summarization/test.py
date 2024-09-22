@@ -13,6 +13,7 @@ from .utils.rouge import compute_dataset_rouge
 
 
 def test(config: dict) -> None:
+    print("Testing model...")
     set_seed(seed=config["seed"])
 
     device = torch.device(config["device"])
@@ -60,7 +61,7 @@ def test(config: dict) -> None:
     test_rouge_scores = compute_dataset_rouge(
         model=model,
         dataset=test_dataloader.dataset,
-        tokenizer=tokenizer.tokenize,
+        tokenizer=tokenizer,
         seq_length=config["seq_length"],
         device=device,
         beam_size=config["beam_size"],
@@ -83,4 +84,5 @@ def test(config: dict) -> None:
         data=data,
         file_path=f"{config['statistic_dir']}/metric_scores.csv",
     )
+    print("TEST METRIC SCORES:")
     print(df)

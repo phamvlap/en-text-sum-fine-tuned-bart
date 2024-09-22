@@ -52,9 +52,9 @@ def train(config: dict) -> None:
     )
 
     initial_epoch = 0
-    global_step = 0
+    initial_global_step = 0
     model_filename = None
-    states = None
+    checkpoint_states = None
     scaler_state_dict = None
 
     if config["preload"] == "latest":
@@ -101,7 +101,7 @@ def train(config: dict) -> None:
     else:
         print("Loading model from {}".format(model_filename))
 
-        states = torch.load(model_filename, map_location=device)
+        checkpoint_states = torch.load(model_filename, map_location=device)
 
         required_keys = [
             "model_state_dict",
@@ -111,20 +111,20 @@ def train(config: dict) -> None:
         if config["lr_scheduler"] is not None:
             required_keys.append("lr_scheduler_state_dict")
         for key in required_keys:
-            if key not in states.keys():
+            if key not in checkpoint_states.keys():
                 raise ValueError(f"Missing key {key} in model state dict.")
 
-        bart_model_config = states["config"]
+        bart_model_config = checkpoint_states["config"]
         bart_model = build_bart_model(config=bart_model_config)
         bart_model.to(device=bart_model_config.device)
-        bart_model.load_state_dict(states["model_state_dict"])
+        bart_model.load_state_dict(checkpoint_states["model_state_dict"])
 
-        if "epoch" in states:
-            initial_epoch = states["epoch"] + 1
-        if "global_step" in states:
-            global_step = states["global_step"]
-        if "scaler_state_dict" in states:
-            scaler_state_dict = states["scaler_state_dict"]
+        if "epoch" in checkpoint_states:
+            initial_epoch = checkpoint_states["epoch"] + 1
+        if "global_step" in checkpoint_states:
+            initial_global_step = checkpoint_states["global_step"]
+        if "scaler_state_dict" in checkpoint_states:
+            scaler_state_dict = checkpoint_states["scaler_state_dict"]
 
     print(f"The model has {count_parameters(bart_model):,} trainable parameters.")
 
@@ -148,10 +148,10 @@ def train(config: dict) -> None:
             ),
         )
 
-    if states is not None:
-        optimizer.load_state_dict(states["optimizer_state_dict"])
+    if checkpoint_states is not None:
+        optimizer.load_state_dict(checkpoint_states["optimizer_state_dict"])
         if lr_scheduler is not None:
-            lr_scheduler.load_state_dict(states["lr_scheduler_state_dict"])
+            lr_scheduler.load_state_dict(checkpoint_states["lr_scheduler_state_dict"])
 
     # Loss function
     loss_fn = nn.CrossEntropyLoss(
@@ -169,7 +169,7 @@ def train(config: dict) -> None:
         device=device,
         seq_length=config["seq_length"],
         initial_epoch=initial_epoch,
-        initial_global_step=global_step,
+        initial_global_step=initial_global_step,
         num_epochs=config["epochs"],
         model_dir=config["model_dir"],
         model_basename=config["model_basename"],

@@ -188,7 +188,7 @@ class Trainer:
                         )
 
             # Save model
-            self._save_model(global_step=global_step, epoch=epoch)
+            self._save_checkpoint(global_step=global_step, epoch=epoch)
 
     def _update_metrics(
         self,
@@ -227,13 +227,13 @@ class Trainer:
         # Reset statistics after writing to wandb
         self.train_stats.reset()
 
-    def _save_model(self, global_step: int, epoch: int) -> None:
+    def _save_checkpoint(self, global_step: int, epoch: int) -> None:
         model_filepath = get_weights_file_path(
             model_basedir=self.config.model_dir,
             model_basename=self.config.model_basename,
             epoch=epoch,
         )
-        obj = {
+        checkpoint_states = {
             "epoch": epoch,
             "global_step": global_step,
             "model_state_dict": self.model.state_dict(),
@@ -241,8 +241,10 @@ class Trainer:
             "config": self.bart_config,
         }
         if torch.cuda.is_available() and self.scaler is not None:
-            obj["scaler_state_dict"] = self.scaler.state_dict()
+            checkpoint_states["scaler_state_dict"] = self.scaler.state_dict()
         if self.lr_scheduler is not None:
-            obj["lr_scheduler_state_dict"] = self.lr_scheduler.state_dict()
+            checkpoint_states["lr_scheduler_state_dict"] = (
+                self.lr_scheduler.state_dict()
+            )
 
-        torch.save(obj, model_filepath)
+        torch.save(checkpoint_states, model_filepath)
