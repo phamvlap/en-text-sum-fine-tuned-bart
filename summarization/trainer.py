@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from transformers import BartTokenizer
 from tqdm import tqdm
@@ -15,6 +14,7 @@ from .utils.statistics import Statistics
 from .utils.eval import evaluate
 from .utils.rouge import compute_dataset_rouge
 from .utils.path import get_weights_file_path
+from .utils.wandb import WandbWriter
 
 
 @dataclass
@@ -51,7 +51,7 @@ class Trainer:
         bart_config: FinetuneBartModelConfig,
         lr_scheduler: optim.lr_scheduler.LRScheduler | None = None,
         scaler_state_dict: dict | None = None,
-        writer: SummaryWriter | None = None,
+        writer: WandbWriter | None = None,
     ) -> None:
         self.model = model
         self.optimizer = optimizer
@@ -119,7 +119,6 @@ class Trainer:
                         decoder_input_ids=decoder_input,
                         decoder_attention_mask=tgt_attention_mask,
                     )
-                    pred = torch.argmax(logits, dim=-1)
 
                     # Compute loss
                     loss = self.loss_fn(
@@ -151,17 +150,18 @@ class Trainer:
 
                 self.optimizer.zero_grad(set_to_none=True)
 
-                self.train_stats.update(
-                    loss=loss.item(),
-                    pred=pred.view(-1),
-                    target=label.view(-1),
-                )
+                self.train_stats.update(loss=loss.item())
 
                 batch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
                 global_step += 1
 
                 if self.writer is not None:
-                    self.writer.add_scalar("train/train_loss", loss.item(), global_step)
+                    self.writer.log(
+                        {
+                            "train/loss": loss.item(),
+                            "step": global_step,
+                        }
+                    )
 
                     if global_step % self.config.evaluating_steps == 0:
                         eval_stats = evaluate(
@@ -185,8 +185,8 @@ class Trainer:
                             accumulate=self.config.accumulate,
                         )
 
-                        self._update_tensorboard(
-                            step=global_step + 1,
+                        self._update_metrics(
+                            step=global_step,
                             eval_stats=eval_stats,
                             rouge_score=rouge_score,
                         )
@@ -196,7 +196,7 @@ class Trainer:
             # Save model
             self._save_model(global_step=global_step, epoch=epoch)
 
-    def _update_tensorboard(
+    def _update_metrics(
         self,
         step: int,
         eval_stats: Statistics,
@@ -205,21 +205,32 @@ class Trainer:
         if self.writer is None:
             return
 
-        self.train_stats.write_to_tensorboard(
-            writer=self.writer,
-            mode="train",
-            step=step,
-        )
-        eval_stats.write_to_tensorboard(
-            writer=self.writer,
-            mode="val",
-            step=step,
-        )
+        train_stats_result = self.train_stats.compute()
+        for key, value in train_stats_result.items():
+            self.writer.log(
+                {
+                    f"train/{key}": value,
+                    "step": step,
+                }
+            )
+        eval_stats_result = eval_stats.compute()
+        for key, value in eval_stats_result.items():
+            self.writer.log(
+                {
+                    f"val/{key}": value,
+                    "step": step,
+                }
+            )
 
         for key, value in rouge_score.items():
-            self.writer.add_scalar(f"val/{key}", value, step)
+            self.writer.log(
+                {
+                    f"val/{key}": value,
+                    "step": step,
+                }
+            )
 
-        # Reset statistics after writing to tensorboard
+        # Reset statistics after writing to wandb
         self.train_stats.reset()
 
     def _save_model(self, global_step: int, epoch: int) -> None:

@@ -2,8 +2,6 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 
-from torch.utils.tensorboard import SummaryWriter
-
 from bart.model import build_bart_model, FinetuneBartModelConfig
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
@@ -12,6 +10,7 @@ from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
 from .utils.mix import noam_lr, count_parameters
 from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_paths
+from .utils.wandb import WandbWriter
 
 
 def train(config: dict) -> None:
@@ -160,7 +159,11 @@ def train(config: dict) -> None:
         label_smoothing=config["label_smoothing"],
     ).to(device=device)
 
-    writer = SummaryWriter(log_dir=config["log_dir"])
+    writer = WandbWriter(
+        project=config["wandb_project"],
+        log_dir=config["wandb_log_dir"],
+        config=bart_model_config.__dict__,
+    )
 
     training_config = TrainingConfig(
         device=device,

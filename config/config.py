@@ -71,7 +71,6 @@ def get_config() -> dict:
     config["epochs"] = 10
     config["preload"] = "latest"
     config["evaluating_steps"] = 1000
-    config["log_dir"] = "logs"
     config["max_grad_norm"] = 1.0
 
     # BART configs
@@ -113,6 +112,10 @@ def get_config() -> dict:
 
     # Statistics result configs
     config["statistic_dir"] = f"{config['base_dir']}/statistics"
+
+    # Wandb writer configs
+    config["wandb_project"] = "en-text-sum-bart"
+    config["wandb_log_dir"] = "wandb-logs"
 
     # Device
     config["device"] = "cuda" if torch.cuda.is_available() else "cpu"

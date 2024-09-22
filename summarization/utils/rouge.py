@@ -3,7 +3,6 @@ import torch
 from torch import Tensor
 from torchmetrics.text.rouge import ROUGEScore
 from transformers import BartTokenizer
-from tqdm import tqdm
 from typing import Literal, Callable
 
 from bart.model import FinetuneBartModel
@@ -86,9 +85,9 @@ def compute_dataset_rouge(
         accumulate=accumulate,
     )
 
-    dataset_iterator = tqdm(dataset, desc="Computing ROUGE Score...")
+    print("Computing ROUGE Score...")
 
-    for idx, data in enumerate(dataset_iterator):
+    for idx, data in enumerate(dataset):
         encoder_input = data["src"]
         label = data["label"]
 

@@ -4,9 +4,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn import functional as Func
 from torch.utils.data import DataLoader
-
 from transformers import BartTokenizer
-from tqdm import tqdm
 
 from bart.model import FinetuneBartModel
 from bart.constants import SpecialToken
@@ -189,9 +187,9 @@ def evaluate(
         device=device,
     )
 
-    batch_iterator = tqdm(val_dataloader, desc="Evaluating model ...")
+    print("Evaluating model...")
 
-    for batch in batch_iterator:
+    for batch in val_dataloader:
         """
         encoder_input (batch_size, seq_length)
         decoder_input (batch_size, seq_length)
@@ -220,19 +218,7 @@ def evaluate(
         )
 
         loss = loss_fn(logits.view(-1, logits.size(-1)), label.view(-1))
-        pred = torch.argmax(logits, dim=-1)
-
-        eval_stats.update(
-            loss=loss.item(),
-            pred=pred.view(-1),
-            target=label.view(-1),
-        )
-
-        batch_iterator.set_postfix(
-            {
-                "loss": f"{loss.item():.4f}",
-            }
-        )
+        eval_stats.update(loss=loss.item())
 
     # Set model back to training mode
     model.train()
