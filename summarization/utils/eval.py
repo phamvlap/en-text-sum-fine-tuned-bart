@@ -172,7 +172,7 @@ def evaluate(
     model: FinetuneBartModel,
     val_dataloader: DataLoader,
     tokenizer: BartTokenizer,
-    loss_fn: nn.CrossEntropyLoss,
+    criterion: nn.CrossEntropyLoss,
     device: torch.device,
 ) -> Statistics:
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
@@ -213,7 +213,7 @@ def evaluate(
             decoder_attention_mask=tgt_attention_mask,
         )
 
-        loss = loss_fn(logits.view(-1, logits.size(-1)), label.view(-1))
+        loss = criterion(logits.view(-1, logits.size(-1)), label.view(-1))
         eval_stats.update(loss=loss.item())
 
     # Set model back to training mode

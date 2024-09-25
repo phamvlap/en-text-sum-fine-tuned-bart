@@ -10,7 +10,7 @@ from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
 from .utils.mix import noam_lr, count_parameters
 from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_paths
-from .utils.wandb import WandbWriter
+from .utils.optimizer import get_optimizer
 
 
 def train(config: dict) -> None:
@@ -129,12 +129,7 @@ def train(config: dict) -> None:
     print(f"The model has {count_parameters(bart_model):,} trainable parameters.")
 
     # Optimizer
-    optimizer = optim.Adam(
-        params=bart_model.parameters(),
-        lr=config["lr"],
-        betas=config["betas"],
-        eps=config["eps"],
-    )
+    optimizer = get_optimizer(model=bart_model, config=config)
 
     # Learning rate scheduler
     lr_scheduler = None
@@ -159,12 +154,6 @@ def train(config: dict) -> None:
         label_smoothing=config["label_smoothing"],
     ).to(device=device)
 
-    writer = WandbWriter(
-        project=config["wandb_project"],
-        log_dir=config["wandb_log_dir"],
-        config=bart_model_config.__dict__,
-    )
-
     training_config = TrainingConfig(
         device=device,
         seq_length=config["seq_length"],
@@ -173,6 +162,10 @@ def train(config: dict) -> None:
         num_epochs=config["epochs"],
         model_dir=config["model_dir"],
         model_basename=config["model_basename"],
+        wandb_project=config["wandb_project"],
+        wandb_key=config["wandb_key"],
+        wandb_notes=None,
+        wandb_log_dir=config["wandb_log_dir"],
         evaluating_steps=config["evaluating_steps"],
         beam_size=config["beam_size"],
         log_examples=config["log_examples"],
@@ -187,11 +180,10 @@ def train(config: dict) -> None:
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
         tokenizer=tokenizer,
-        loss_fn=loss_fn,
+        criterion=loss_fn,
         config=training_config,
         bart_config=bart_model_config,
         scaler_state_dict=scaler_state_dict,
-        writer=writer,
     )
 
     trainer.train(

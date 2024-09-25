@@ -17,7 +17,7 @@ def train_tokenizer(config: dict) -> BartTokenizer:
         ds_train = ds[src_feature]
 
     ds_train = pd.DataFrame(ds_train, columns=[src_feature])
-    ds_train = clean_dataset(df=ds_train, features=src_feature)
+    ds_train = clean_dataset(df=ds_train, features=[src_feature])
 
     bart_tokenizer = CustomBartTokenizer(
         dataset=ds_train[src_feature],

@@ -1,3 +1,4 @@
+import wandb
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,8 +14,7 @@ from bart.constants import SpecialToken, RougeKey
 from .utils.statistics import Statistics
 from .utils.eval import evaluate
 from .utils.rouge import compute_dataset_rouge
-from .utils.path import get_weights_file_path
-from .utils.wandb import WandbWriter
+from .utils.path import get_weights_file_path, make_dir
 
 
 @dataclass
@@ -24,6 +24,10 @@ class TrainingConfig:
     num_epochs: int
     model_dir: str
     model_basename: str
+    wandb_project: str
+    wandb_key: str
+    wandb_notes: Optional[str] = None
+    wandb_log_dir: Optional[str] = None
     initial_epoch: int = 0
     initial_global_step: int = 0
     evaluating_steps: int = 1000
@@ -46,23 +50,20 @@ class Trainer:
         model: FinetuneBartModel,
         optimizer: optim.Optimizer,
         tokenizer: BartTokenizer,
-        loss_fn: nn.CrossEntropyLoss,
+        criterion: nn.CrossEntropyLoss,
         config: TrainingConfig,
         bart_config: FinetuneBartModelConfig,
         lr_scheduler: Optional[optim.lr_scheduler.LRScheduler] = None,
         scaler_state_dict: Optional[dict] = None,
-        writer: Optional[WandbWriter] = None,
     ) -> None:
         self.model = model
-        self.compiled_model = torch.compile(self.model)
         self.optimizer = optimizer
-        self.loss_fn = loss_fn
+        self.criterion = criterion
         self.lr_scheduler = lr_scheduler
         self.tokenizer = tokenizer
         self.pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
         self.config = config
         self.bart_config = bart_config
-        self.writer = writer
         self.train_stats = Statistics()
         # Automatic Mixed Precision
         self.scaler = None
@@ -70,10 +71,22 @@ class Trainer:
             self.scaler = torch.amp.GradScaler("cuda")
             if scaler_state_dict is not None:
                 self.scaler.load_state_dict(scaler_state_dict)
+        # Wandb logger
+        wandb.login(key=self.config.wandb_key)
+        log_dir = (
+            self.config.wandb_log_dir if self.config.wandb_log_dir else "wandb-logs"
+        )
+        make_dir(log_dir)
+        self.run = wandb.init(
+            project=self.config.wandb_project,
+            config=self.bart_config.__dict__,
+            dir=log_dir,
+            notes=self.config.wandb_notes,
+        )
 
     def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader) -> None:
         # Set model to train mode
-        self.compiled_model.train()
+        self.model.train()
 
         global_step = self.config.initial_global_step
 
@@ -95,6 +108,8 @@ class Trainer:
                 decoder_input = batch["tgt"].to(device=self.config.device)
                 label = batch["label"].to(device=self.config.device)
 
+                self.optimizer.zero_grad(set_to_none=True)
+
                 src_attention_mask = (encoder_input != self.pad_token_id).to(
                     device=self.config.device,
                     dtype=torch.int64,
@@ -110,7 +125,7 @@ class Trainer:
                     enabled=torch.cuda.is_available(),
                 ):
                     # logits (batch_size, seq_length, vocab_size)
-                    logits = self.compiled_model(
+                    logits = self.model(
                         input_ids=encoder_input,
                         attention_mask=src_attention_mask,
                         decoder_input_ids=decoder_input,
@@ -118,7 +133,7 @@ class Trainer:
                     )
 
                     # Compute loss
-                    loss = self.loss_fn(
+                    loss = self.criterion(
                         logits.view(-1, logits.size(-1)), label.view(-1)
                     )
 
@@ -132,7 +147,7 @@ class Trainer:
                     ):
                         self.scaler.unscale_(self.optimizer)
                         torch.nn.utils.clip_grad_norm_(
-                            parameters=self.compiled_model.parameters(),
+                            parameters=self.model.parameters(),
                             max_norm=self.config.max_grad_norm,
                         )
                     # Update weights and learning rate
@@ -145,51 +160,45 @@ class Trainer:
                 if self.lr_scheduler is not None:
                     self.lr_scheduler.step()
 
-                self.optimizer.zero_grad(set_to_none=True)
-
                 self.train_stats.update(loss=loss.item())
 
                 batch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
                 global_step += 1
 
-                if self.writer is not None:
-                    self.writer.log(
-                        {
-                            "train/loss": loss.item(),
-                            "step": global_step,
-                        }
+                self.run.log({"train/loss": loss.item()})
+
+                if global_step % self.config.evaluating_steps == 0:
+                    eval_stats = evaluate(
+                        model=self.model,
+                        val_dataloader=val_dataloader,
+                        tokenizer=self.tokenizer,
+                        criterion=self.criterion,
+                        device=self.config.device,
+                    )
+                    rouge_score = compute_dataset_rouge(
+                        model=self.model,
+                        dataset=val_dataloader.dataset,
+                        tokenizer=self.tokenizer,
+                        seq_length=self.config.seq_length,
+                        device=self.config.device,
+                        beam_size=self.config.beam_size,
+                        log_examples=self.config.log_examples,
+                        logging_steps=self.config.logging_steps,
+                        rouge_keys=self.config.rouge_keys,
+                        use_stemmer=self.config.use_stemmer,
+                        accumulate=self.config.accumulate,
                     )
 
-                    if global_step % self.config.evaluating_steps == 0:
-                        eval_stats = evaluate(
-                            model=self.compiled_model,
-                            val_dataloader=val_dataloader,
-                            tokenizer=self.tokenizer,
-                            loss_fn=self.loss_fn,
-                            device=self.config.device,
-                        )
-                        rouge_score = compute_dataset_rouge(
-                            model=self.compiled_model,
-                            dataset=val_dataloader.dataset,
-                            tokenizer=self.tokenizer,
-                            seq_length=self.config.seq_length,
-                            device=self.config.device,
-                            beam_size=self.config.beam_size,
-                            log_examples=self.config.log_examples,
-                            logging_steps=self.config.logging_steps,
-                            rouge_keys=self.config.rouge_keys,
-                            use_stemmer=self.config.use_stemmer,
-                            accumulate=self.config.accumulate,
-                        )
-
-                        self._update_metrics(
-                            step=global_step,
-                            eval_stats=eval_stats,
-                            rouge_score=rouge_score,
-                        )
+                    self._update_metrics(
+                        step=global_step,
+                        eval_stats=eval_stats,
+                        rouge_score=rouge_score,
+                    )
 
             # Save model
             self._save_checkpoint(global_step=global_step, epoch=epoch)
+
+        self.run.finish()
 
     def _update_metrics(
         self,
@@ -197,33 +206,15 @@ class Trainer:
         eval_stats: Statistics,
         rouge_score: dict[str, float],
     ) -> None:
-        if self.writer is None:
-            return
-
         train_stats_result = self.train_stats.compute()
         for key, value in train_stats_result.items():
-            self.writer.log(
-                {
-                    f"train/{key}": value,
-                    "step": step,
-                }
-            )
+            self.run.log({f"train/{key}": value})
         eval_stats_result = eval_stats.compute()
         for key, value in eval_stats_result.items():
-            self.writer.log(
-                {
-                    f"val/{key}": value,
-                    "step": step,
-                }
-            )
+            self.run.log({f"val/{key}": value})
 
         for key, value in rouge_score.items():
-            self.writer.log(
-                {
-                    f"val/{key}": value,
-                    "step": step,
-                }
-            )
+            self.run.log({f"val/{key}": value})
 
         # Reset statistics after writing to wandb
         self.train_stats.reset()
@@ -237,7 +228,7 @@ class Trainer:
         checkpoint_states = {
             "epoch": epoch,
             "global_step": global_step,
-            "model_state_dict": self.compiled_model.state_dict(),
+            "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "config": self.bart_config,
         }

@@ -55,7 +55,7 @@ def test(config: dict) -> None:
         model=model,
         val_dataloader=test_dataloader,
         tokenizer=tokenizer,
-        loss_fn=loss_fn,
+        criterion=loss_fn,
         device=device,
     )
     test_rouge_scores = compute_dataset_rouge(

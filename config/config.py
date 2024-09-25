@@ -53,10 +53,12 @@ def get_config() -> dict:
     config["batch_size_val"] = 16
     config["batch_size_test"] = 4
 
-    # Adam optimizer configs
+    # Adam and AdamW optimizer configs
+    config["optimizer"] = "adamw"
     config["lr"] = 0.5
     config["betas"] = (0.9, 0.98)
     config["eps"] = 1e-9  # = 10 ** -9
+    config["weight_decay"] = 0.0
 
     # Learning rate scheduler configs
     config["lr_scheduler"] = "noam"
@@ -116,6 +118,7 @@ def get_config() -> dict:
     # Wandb writer configs
     config["wandb_project"] = "en-text-sum-bart"
     config["wandb_log_dir"] = "wandb-logs"
+    config["wandb_key"] = "wandb-key"
 
     # Device
     config["device"] = "cuda" if torch.cuda.is_available() else "cpu"
