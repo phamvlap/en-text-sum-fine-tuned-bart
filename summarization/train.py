@@ -1,5 +1,4 @@
 import torch
-import torch.optim as optim
 import torch.nn as nn
 
 from bart.model import build_bart_model, FinetuneBartModelConfig
@@ -8,9 +7,10 @@ from .summarization_dataset import get_dataloader
 from .trainer import Trainer, TrainingConfig
 from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
-from .utils.mix import noam_lr, count_parameters
+from .utils.mix import count_parameters
 from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_paths
 from .utils.optimizer import get_optimizer
+from .utils.lr_scheduler import get_lr_scheduler
 
 
 def train(config: dict) -> None:
@@ -132,16 +132,7 @@ def train(config: dict) -> None:
     optimizer = get_optimizer(model=bart_model, config=config)
 
     # Learning rate scheduler
-    lr_scheduler = None
-    if config["lr_scheduler"] == "noam":
-        lr_scheduler = optim.lr_scheduler.LambdaLR(
-            optimizer=optimizer,
-            lr_lambda=lambda step: noam_lr(
-                model_size=config["d_model"],
-                step=step,
-                warmup_steps=config["warmup_steps"],
-            ),
-        )
+    lr_scheduler = get_lr_scheduler(optimizer=optimizer, config=config)
 
     if checkpoint_states is not None:
         optimizer.load_state_dict(checkpoint_states["optimizer_state_dict"])

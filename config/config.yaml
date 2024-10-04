@@ -52,7 +52,7 @@ eps: 1e-9 # = 10 ** -9
 weight_decay: 0.0
 
 # Learning rate scheduler configs
-lr_scheduler: noam # noam | cosine
+lr_scheduler: cosine # noam | cosine
 
 # NoamLR scheduler configs
 warmup_steps: 4000
