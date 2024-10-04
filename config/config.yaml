@@ -1,0 +1,116 @@
+# General configs
+seed: 42
+
+# Model configs
+base_dir: trained
+model_dir: trained/models
+model_basename: bart_model_
+
+# Dataset configs
+dataset_dir: dataset
+data_files_path:
+  train: dataset/train.csv
+  val: dataset/val.csv
+  test: dataset/test.csv
+raw_data_file_path: path/to/raw/data/file.csv
+text_src: document
+text_tgt: summary
+train_size: 0.75
+val_size: 0.1
+test_size: 0.15
+is_sampling: False
+num_samples: 1000
+
+# Tokenizer configs
+tokenizer_train_ds_path: path/to/train/tokenizer/file.csv
+tokenizer_bart_dir: tokenizer-bart
+is_train_tokenizer: False
+special_tokens:
+  - <s>
+  - </s>
+  - <pad>
+  - <unk>
+  - <mask>
+shared_vocab: True
+vocab_size: 50000
+min_freq: 2
+model_type: byte_level_bpe
+show_progress: True
+
+# Dataloader configs
+batch_size_train: 32
+batch_size_val: 16
+batch_size_test: 4
+
+# Adam and AdamW optimizer configs
+optimizer: adamw
+lr: 0.5
+betas:
+  - 0.9
+  - 0.98
+eps: 1e-9 # = 10 ** -9
+weight_decay: 0.0
+
+# Learning rate scheduler configs
+lr_scheduler: noam # noam | cosine
+
+# NoamLR scheduler configs
+warmup_steps: 4000
+
+# CosineAnnealing with warm restarts scheduler configs
+T_0: 10
+T_mult: 2
+eta_min: 1e-5
+
+# Loss function configs
+label_smoothing: 0.1
+
+# Training configs
+epochs: 10
+preload: latest
+evaluating_steps: 5000
+max_grad_norm: 1.0
+
+# BART configs
+seq_length: 512 # max length of input sequence
+d_model: 1024 # dimension of hidden layers
+encoder_layers: 6 # number of encoder layers
+decoder_layers: 6 # number of decoder layers
+encoder_attention_heads: 8 # number of encoder attention heads
+decoder_attention_heads: 8 # number of decoder attention heads
+encoder_ffn_dim: 2048 # dimension of feedforward network in encoder
+decoder_ffn_dim: 2048 # dimension of feedforward network in decoder
+activation_function: gelu # 'gelu', 'relu', 'silu' or 'gelu_new'
+dropout: 0.1 # dropout rate for individual layer
+attention_dropout: 0.1 # dropout rate for attention layer
+activation_dropout: 0.1 # dropout rate after activation function
+classifier_dropout: 0.1 # dropout rate for classifier
+max_position_embeddings: 512
+init_std: 0.02 # standard deviation for initializing weight parameters
+encoder_layerdrop: 0.2 # layer dropout rate for entire encoder layers
+decoder_layerdrop: 0.2 # layer dropout rate for entire decoder layers
+scale_embedding: True # scale embedding by sqrt(d_model)
+num_beams: 4 # beam search size
+
+# Rouge Score configs
+rouge_keys:
+  - rouge1
+  - rouge2
+  - rougeL
+use_stemmer: True
+accumulate: best # 'best' | 'avg'
+
+# Compute Rouge Score configs
+log_examples: True
+logging_steps: 5000
+
+# Beam search configs
+beam_size: 3
+
+# Statistics result configs
+statistic_dir: trained/statistics
+
+# Wandb writer configs
+wandb_project: en-text-sum-bart
+wandb_log_dir: wandb-logs
+wandb_key: wandb-key

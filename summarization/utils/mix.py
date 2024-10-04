@@ -1,5 +1,7 @@
+import yaml
 import types
 import pandas as pd
+import torch
 import torch.nn as nn
 
 from pathlib import Path
@@ -52,3 +54,14 @@ def get_constants_from_module(module: object) -> dict:
 
 def count_parameters(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+def load_config(config_path: str) -> dict:
+    with open(config_path, "r") as file:
+        config = yaml.safe_load(file)
+
+    config["eps"] = float(config["eps"])
+    config["eta_min"] = float(config["eta_min"])
+    config["device"] = "cuda" if torch.cuda.is_available() else "cpu"
+
+    return config
