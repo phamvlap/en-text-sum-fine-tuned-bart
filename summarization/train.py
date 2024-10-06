@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from bart.model import build_bart_model, FinetuneBartModelConfig
+from bart.model import build_bart_model, FineTunedBartForGenerationConfig
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
 from .trainer import Trainer, TrainingConfig
@@ -71,7 +71,7 @@ def train(config: dict) -> None:
     if model_filename is None:
         print("Starting training model from scratch")
 
-        bart_model_config = FinetuneBartModelConfig(
+        bart_model_config = FineTunedBartForGenerationConfig(
             seq_length=config["seq_length"],
             device=config["device"],
             vocab_size=tokenizer.vocab_size,

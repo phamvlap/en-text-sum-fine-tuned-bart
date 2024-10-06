@@ -6,7 +6,7 @@ from torch.nn import functional as Func
 from torch.utils.data import DataLoader
 from transformers import BartTokenizer
 
-from bart.model import FinetuneBartModel
+from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken
 from .statistics import Statistics
 
@@ -42,7 +42,7 @@ def create_decoder_mask(decoder_input: Tensor, pad_token_id: int) -> Tensor:
 
 
 def greedy_search_decode(
-    model: FinetuneBartModel,
+    model: FineTunedBartForGeneration,
     input_ids: Tensor,
     tokenizer: BartTokenizer,
     seq_length: int,
@@ -72,8 +72,8 @@ def greedy_search_decode(
     )
     # encoder_output (1, seq_length, d_model)
     encoder_output = model.encode(
-        input_ids=input_ids,
-        attention_mask=encoder_attention_mask,
+        encoder_input_ids=input_ids,
+        encoder_attn_mask=encoder_attention_mask,
     )
 
     # decoder_input (1, 1)
@@ -92,14 +92,14 @@ def greedy_search_decode(
 
         # decoder_output (1, _, d_model)
         decoder_output = model.decode(
-            input_ids=decoder_input,
-            attention_mask=decoder_attention_mask,
-            encoder_hidden_states=encoder_output,
-            encoder_attention_mask=encoder_attention_mask,
+            decoder_input_ids=decoder_input,
+            decoder_attn_mask=decoder_attention_mask,
+            encoder_output=encoder_output,
+            encoder_attn_mask=encoder_attention_mask,
         )
 
         # logits (1, _, vocab_size)
-        logits = model.out(decoder_output[:, -1, :])
+        logits = model.proj(decoder_output[:, -1, :])
         next_token = torch.argmax(input=logits, dim=-1)
 
         decoder_input = torch.cat(
@@ -126,7 +126,7 @@ def length_penalty(length: int, alpha: float = 0.6) -> float:
 
 
 def beam_search_decode(
-    model: FinetuneBartModel,
+    model: FineTunedBartForGeneration,
     beam_size: int,
     input_ids: Tensor,
     tokenizer: BartTokenizer,
@@ -160,8 +160,8 @@ def beam_search_decode(
     )
     # encoder_output (1, seq_length, d_model)
     encoder_output = model.encode(
-        input_ids=input_ids,
-        attention_mask=encoder_attention_mask,
+        encoder_input_ids=input_ids,
+        encoder_attn_mask=encoder_attention_mask,
     )
 
     # Initialize decoder input with only <s> token (1, 1)
@@ -198,15 +198,15 @@ def beam_search_decode(
 
             # decoder_output (1, cand.size(1), d_model)
             decoder_output = model.decode(
-                input_ids=cand,
-                attention_mask=decoder_attention_mask,
-                encoder_hidden_states=encoder_output,
-                encoder_attention_mask=encoder_attention_mask,
+                decoder_input_ids=cand,
+                decoder_attn_mask=decoder_attention_mask,
+                encoder_output=encoder_output,
+                encoder_attn_mask=encoder_attention_mask,
             )
 
             # Get the last token logits
             # logits (1, cand.size(1), vocab_size)
-            logits = model.out(decoder_output[:, -1, :])
+            logits = model.proj(decoder_output[:, -1, :])
 
             # Get the next token probabilities
             # norm_probs (1, cand.size(1), vocab_size)
@@ -240,7 +240,7 @@ def beam_search_decode(
 
 @torch.no_grad()
 def evaluate(
-    model: FinetuneBartModel,
+    model: FineTunedBartForGeneration,
     val_dataloader: DataLoader,
     tokenizer: BartTokenizer,
     criterion: nn.CrossEntropyLoss,
@@ -272,10 +272,10 @@ def evaluate(
 
         # logits (batch_size, seq_length, vocab_size)
         logits = model(
-            input_ids=encoder_input,
-            attention_mask=encoder_attention_mask,
+            encoder_input_ids=encoder_input,
+            encoder_attn_mask=encoder_attention_mask,
             decoder_input_ids=decoder_input,
-            decoder_attention_mask=decoder_attention_mask,
+            decoder_attn_mask=decoder_attention_mask,
         )
 
         loss = criterion(logits.view(-1, logits.size(-1)), label.view(-1))

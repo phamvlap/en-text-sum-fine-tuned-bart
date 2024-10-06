@@ -1,13 +1,13 @@
 import torch.nn as nn
 
-from torch import Tensor, LongTensor
+from torch import Tensor
 from transformers import BartConfig, BartModel
 from dataclasses import dataclass
 from typing import Literal
 
 
 @dataclass
-class FinetuneBartModelConfig:
+class FineTunedBartForGenerationConfig:
     seq_length: int
     device: Literal["cpu", "cuda"]
     vocab_size: int
@@ -33,66 +33,94 @@ class FinetuneBartModelConfig:
     num_beams: int = 4
 
 
-class FinetuneBartModel(nn.Module):
+class FineTunedBartForGeneration(nn.Module):
     def __init__(self, config: BartConfig) -> None:
         super().__init__()
         self.bart_model = BartModel(config)
-        self.proj = nn.Linear(config.d_model, config.vocab_size)
+        self.linear_proj = nn.Linear(config.d_model, config.vocab_size)
 
-    def forward(self, **kwargs) -> Tensor:
+    def forward(
+        self,
+        encoder_input_ids: Tensor,
+        encoder_attn_mask: Tensor,
+        decoder_input_ids: Tensor,
+        decoder_attn_mask: Tensor,
+        **kwargs,
+    ) -> Tensor:
+        """
+        Args:
+            encoder_input_ids: encoder input tensor, shape `(batch_size, seq_length)`
+            encoder_attn_mask: encoder attention mask tensor, shape `(batch_size, seq_length)`
+            decoder_input_ids: decoder input tensor, shape `(batch_size, tgt_seq_length)`
+            decoder_attn_mask: decoder attention mask tensor, shape `(batch_size, tgt_seq_length)`
+            **kwargs: additional arguments
+        Returns:
+            Tensor: `(batch_size, seq_len, vocab_size)`
+        """
+        output = self.bart_model(
+            input_ids=encoder_input_ids,
+            attention_mask=encoder_attn_mask,
+            decoder_input_ids=decoder_input_ids,
+            decoder_attention_mask=decoder_attn_mask,
+            **kwargs,
+        )
         # output.last_hidden_state (batch_size, seq_len, d_model)
-        # logits (batch_size, seq_len, vocab_size)
-        out = self.bart_model(**kwargs)
-        logits = self.proj(out.last_hidden_state)
+        logits = self.linear_proj(output.last_hidden_state)
         return logits
-
-    """"
-    args:
-        input_ids (batch_size, seq_length)
-        attention_mask (batch_size, seq_length)
-    return:
-        tensor (batch_size, seq_length, d_model)
-    """
 
     def encode(
         self,
-        input_ids: LongTensor,
-        attention_mask: Tensor,
+        encoder_input_ids: Tensor,
+        encoder_attn_mask: Tensor,
     ) -> Tensor:
+        """
+        Args:
+            encoder_input_ids: encoder input tensor, shape `(batch_size, seq_length)`
+            encoder_attn_mask: encoder attention mask tensor, shape `(batch_size, seq_length)`
+        Returns:
+            Tensor: `(batch_size, seq_length, d_model)`
+        """
         return self.bart_model.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
+            input_ids=encoder_input_ids,
+            attention_mask=encoder_attn_mask,
         ).last_hidden_state
-
-    """"
-    args:
-        input_ids (batch_size, seq_length)
-        attention_mask (batch_size, seq_length)
-        encoder_hidden_states (batch_size, encoder_seq_length, d_model)
-        encoder_attention_mask (batch_size, encoder_seq_length)
-    return:
-        tensor (batch_size, seq_length, d_model)
-    """
 
     def decode(
         self,
-        input_ids: LongTensor,
-        attention_mask: Tensor,
-        encoder_hidden_states: Tensor,
-        encoder_attention_mask: Tensor,
+        decoder_input_ids: Tensor,
+        decoder_attn_mask: Tensor,
+        encoder_output: Tensor,
+        encoder_attn_mask: Tensor,
     ) -> Tensor:
+        """
+        Args:
+            decoder_input_ids: decoder input tensor, shape `(batch_size, seq_length)`
+            decoder_attn_mask: decoder input tensor, shape `(batch_size, seq_length)`
+            encoder_output: encoder output tensor, shape `(batch_size, encoder_seq_length, d_model)`
+            encoder_attn_mask: encoder attention mask tensor, shape `(batch_size, encoder_seq_length)`
+        Returns:
+            Tensor: `(batch_size, seq_length, d_model)`
+        """
         return self.bart_model.decoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
+            input_ids=decoder_input_ids,
+            attention_mask=decoder_attn_mask,
+            encoder_hidden_states=encoder_output,
+            encoder_attention_mask=encoder_attn_mask,
         ).last_hidden_state
 
-    def out(self, x: Tensor) -> Tensor:
-        return self.proj(x)
+    def proj(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x: input tensor, shape `(batch_size, seq_length, d_model)`
+        Returns:
+            Tensor: output tensor, shape `(batch_size, seq_length, vocab_size)`
+        """
+        return self.linear_proj(x)
 
 
-def build_bart_model(config: FinetuneBartModelConfig) -> FinetuneBartModel:
+def build_bart_model(
+    config: FineTunedBartForGenerationConfig,
+) -> FineTunedBartForGeneration:
     bart_config = BartConfig(
         vocab_size=config.vocab_size,
         d_model=config.d_model,
@@ -120,6 +148,6 @@ def build_bart_model(config: FinetuneBartModelConfig) -> FinetuneBartModel:
         forced_eos_token_id=config.eos_token_id,
     )
 
-    bart_model = FinetuneBartModel(config=bart_config)
+    bart_model = FineTunedBartForGeneration(config=bart_config)
 
     return bart_model

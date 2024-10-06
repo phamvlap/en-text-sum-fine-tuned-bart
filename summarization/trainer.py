@@ -9,7 +9,7 @@ from tqdm import tqdm
 from dataclasses import dataclass
 from typing import Literal, Optional
 
-from bart.model import FinetuneBartModel, FinetuneBartModelConfig
+from bart.model import FineTunedBartForGeneration, FineTunedBartForGenerationConfig
 from bart.constants import SpecialToken, RougeKey
 from .utils.statistics import Statistics
 from .utils.eval import evaluate
@@ -48,12 +48,12 @@ class TrainingConfig:
 class Trainer:
     def __init__(
         self,
-        model: FinetuneBartModel,
+        model: FineTunedBartForGeneration,
         optimizer: optim.Optimizer,
         tokenizer: BartTokenizer,
         criterion: nn.CrossEntropyLoss,
         config: TrainingConfig,
-        bart_config: FinetuneBartModelConfig,
+        bart_config: FineTunedBartForGenerationConfig,
         lr_scheduler: Optional[optim.lr_scheduler.LRScheduler] = None,
         scaler_state_dict: Optional[dict] = None,
     ) -> None:
@@ -127,10 +127,10 @@ class Trainer:
                 ):
                     # logits (batch_size, seq_length, vocab_size)
                     logits = self.model(
-                        input_ids=encoder_input,
-                        attention_mask=src_attention_mask,
+                        encoder_input_ids=encoder_input,
+                        encoder_attn_mask=src_attention_mask,
                         decoder_input_ids=decoder_input,
-                        decoder_attention_mask=tgt_attention_mask,
+                        decoder_attn_mask=tgt_attention_mask,
                     )
 
                     # Compute loss
