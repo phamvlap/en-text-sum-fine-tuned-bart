@@ -32,6 +32,7 @@ class TrainingConfig:
     initial_global_step: int = 0
     evaluating_steps: int = 1000
     beam_size: Optional[int] = None
+    topk: int = 1
     log_examples: bool = True
     logging_steps: int = 100
     rouge_keys: list[str] | tuple[str] = (
@@ -182,6 +183,7 @@ class Trainer:
                         seq_length=self.config.seq_length,
                         device=self.config.device,
                         beam_size=self.config.beam_size,
+                        topk=self.config.topk,
                         log_examples=self.config.log_examples,
                         logging_steps=self.config.logging_steps,
                         rouge_keys=self.config.rouge_keys,

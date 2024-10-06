@@ -106,6 +106,7 @@ logging_steps: 5000
 
 # Beam search configs
 beam_size: 3
+topk: 2
 
 # Statistics result configs
 statistic_dir: trained/statistics

@@ -64,6 +64,7 @@ def compute_dataset_rouge(
     seq_length: int,
     device: torch.device,
     beam_size: Optional[int] = None,
+    topk: int = 1,
     log_examples: bool = True,
     logging_steps: int = 100,
     use_stemmer: bool = True,
@@ -92,18 +93,20 @@ def compute_dataset_rouge(
         label = data["label"]
 
         if beam_size is not None and beam_size > 1:
-            pred_tokens = beam_search_decode(
+            cands = beam_search_decode(
                 model=model,
                 beam_size=beam_size,
-                source=encoder_input,
+                input_ids=encoder_input,
                 tokenizer=tokenizer,
                 seq_length=seq_length,
                 device=device,
+                topk=topk,
             )
+            pred_tokens = cands[0]
         else:
             pred_tokens = greedy_search_decode(
                 model=model,
-                source=encoder_input,
+                input_ids=encoder_input,
                 tokenizer=tokenizer,
                 seq_length=seq_length,
                 device=device,

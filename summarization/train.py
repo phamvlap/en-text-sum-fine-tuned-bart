@@ -159,6 +159,7 @@ def train(config: dict) -> None:
         wandb_log_dir=config["wandb_log_dir"],
         evaluating_steps=config["evaluating_steps"],
         beam_size=config["beam_size"],
+        topk=config["topk"],
         log_examples=config["log_examples"],
         logging_steps=config["logging_steps"],
         use_stemmer=config["use_stemmer"],

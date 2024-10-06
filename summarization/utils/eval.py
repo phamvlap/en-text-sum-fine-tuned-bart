@@ -11,47 +11,95 @@ from bart.constants import SpecialToken
 from .statistics import Statistics
 
 
+def create_encoder_mask(encoder_input: Tensor, pad_token_id: int) -> Tensor:
+    """
+    Args:
+        encoder_input: input tensor, shape `(1, seq_length)`
+        pad_token_id: id of padding token
+    Returns:
+        Tensor: masked tensor, shape `(1, seq_length)`
+    """
+    return (
+        (encoder_input != pad_token_id)
+        .type_as(encoder_input)
+        .to(device=encoder_input.device)
+    )
+
+
+def create_decoder_mask(decoder_input: Tensor, pad_token_id: int) -> Tensor:
+    """
+    Args:
+        decoder_input: input tensor, shape `(1, seq_length)`
+        pad_token_id: id of padding token
+    Returns:
+        Tensor: masked tensor, shape `(1, seq_length)`
+    """
+    return (
+        (decoder_input != pad_token_id)
+        .type_as(decoder_input)
+        .to(device=decoder_input.device)
+    )
+
+
 def greedy_search_decode(
     model: FinetuneBartModel,
-    source: Tensor,
+    input_ids: Tensor,
     tokenizer: BartTokenizer,
     seq_length: int,
     device: torch.device,
 ) -> Tensor:
+    """
+    Args:
+        model: model of FinetuneBartModel
+        input_ids: input tensor, shape `(seq_length,)`
+        tokenizer: tokenizer of BartTokenizer
+        seq_length: maximum sequence length
+        device: torch.device
+    Returns:
+        Tensor: output tensor, shape `(seq_length,)`
+    """
     bos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
     eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
-    # source (1, seq_length)
-    source = source.unsqueeze(dim=0).to(device=device)
+    # input_ids (1, seq_length)
+    input_ids = input_ids.unsqueeze(dim=0).to(device=device)
 
-    # src_attention_mask (1, seq_length)
-    src_attention_mask = (source != pad_token_id).type_as(source).to(device=device)
+    # encoder_attention_mask (1, seq_length)
+    encoder_attention_mask = create_encoder_mask(
+        encoder_input=input_ids,
+        pad_token_id=pad_token_id,
+    )
     # encoder_output (1, seq_length, d_model)
     encoder_output = model.encode(
-        input_ids=source,
-        attention_mask=src_attention_mask,
+        input_ids=input_ids,
+        attention_mask=encoder_attention_mask,
     )
 
     # decoder_input (1, 1)
     decoder_input = (
-        torch.empty(1, 1).fill_(value=bos_token_id).type_as(source).to(device=device)
+        torch.empty(1, 1)
+        .fill_(value=bos_token_id)
+        .type_as(input_ids)
+        .to(device=device),
     )
 
     for _ in range(seq_length):
-        decoder_attention_mask = (
-            (decoder_input != pad_token_id).type_as(source).to(device=device)
+        decoder_attention_mask = create_decoder_mask(
+            decoder_input=decoder_input,
+            pad_token_id=pad_token_id,
         )
 
+        # decoder_output (1, _, d_model)
         decoder_output = model.decode(
             input_ids=decoder_input,
             attention_mask=decoder_attention_mask,
             encoder_hidden_states=encoder_output,
-            encoder_attention_mask=src_attention_mask,
+            encoder_attention_mask=encoder_attention_mask,
         )
 
-        logits = model.out(decoder_output[:, -1, :])  # logits (1, vocab_size)
-
+        # logits (1, _, vocab_size)
+        logits = model.out(decoder_output[:, -1, :])
         next_token = torch.argmax(input=logits, dim=-1)
 
         decoder_input = torch.cat(
@@ -59,7 +107,7 @@ def greedy_search_decode(
                 decoder_input,
                 torch.empty(1, 1)
                 .fill_(value=next_token.item())
-                .type_as(source)
+                .type_as(input_ids)
                 .to(device=device),
             ],
             dim=1,
@@ -72,7 +120,7 @@ def greedy_search_decode(
     return output
 
 
-# Calculate length penalty, formular in (Wu et al., 2016)
+# Calculate length penalty, formula in (Wu et al., 2016)
 def length_penalty(length: int, alpha: float = 0.6) -> float:
     return (5 * length) ** alpha / (5 + 1) ** alpha
 
@@ -80,29 +128,48 @@ def length_penalty(length: int, alpha: float = 0.6) -> float:
 def beam_search_decode(
     model: FinetuneBartModel,
     beam_size: int,
-    source: Tensor,
+    input_ids: Tensor,
     tokenizer: BartTokenizer,
     seq_length: int,
     device: torch.device,
-) -> Tensor:
+    topk: int = 1,
+) -> list[Tensor]:
+    """
+    Args:
+        model: model of FinetuneBartModel
+        beam_size: size of beam
+        input_ids: input tensor, shape `(seq_length,)`
+        tokenizer: tokenizer of BartTokenizer
+        seq_length: maximum sequence length
+        device: torch.device
+        topk: top k best candidates returned (default: 1)
+    Returns:
+        list[Tensor]: list of output tensors, each tensor with shape `(seq_length,)`
+    """
     bos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
     eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
-    # source (1, seq_length)
-    source = source.unsqueeze(dim=0).to(device=device)
+    # input_ids (1, seq_length)
+    input_ids = input_ids.unsqueeze(dim=0).to(device=device)
 
-    # src_attention_mask (1, seq_length)
-    src_attention_mask = (source != pad_token_id).type_as(source).to(device=device)
+    # encoder_attention_mask (1, seq_length)
+    encoder_attention_mask = create_encoder_mask(
+        encoder_input=input_ids,
+        pad_token_id=pad_token_id,
+    )
     # encoder_output (1, seq_length, d_model)
     encoder_output = model.encode(
-        input_ids=source,
-        attention_mask=src_attention_mask,
+        input_ids=input_ids,
+        attention_mask=encoder_attention_mask,
     )
 
     # Initialize decoder input with only <s> token (1, 1)
     decoder_input = (
-        torch.empty(1, 1).fill_(value=bos_token_id).type_as(source).to(device=device)
+        torch.empty(1, 1)
+        .fill_(value=bos_token_id)
+        .type_as(input_ids)
+        .to(device=device),
     )
 
     # Candidate list ccontaints tuples of (cand, log_score)
@@ -123,9 +190,10 @@ def beam_search_decode(
                 new_candidates.append((cand, score))
                 continue
 
-            # Create attention mask for decoder input
-            decoder_attention_mask = (
-                (cand != pad_token_id).type_as(source).to(device=device)
+            # Create attention mask for decoder input, shape (1, cand.size(1))
+            decoder_attention_mask = create_decoder_mask(
+                decoder_input=cand,
+                pad_token_id=pad_token_id,
             )
 
             # decoder_output (1, cand.size(1), d_model)
@@ -133,15 +201,15 @@ def beam_search_decode(
                 input_ids=cand,
                 attention_mask=decoder_attention_mask,
                 encoder_hidden_states=encoder_output,
-                encoder_attention_mask=src_attention_mask,
+                encoder_attention_mask=encoder_attention_mask,
             )
 
             # Get the last token logits
-            # logits (1, vocab_size)
+            # logits (1, cand.size(1), vocab_size)
             logits = model.out(decoder_output[:, -1, :])
 
             # Get the next token probabilities
-            # norm_probs (1, vocab_size)
+            # norm_probs (1, cand.size(1), vocab_size)
             norm_probs = Func.log_softmax(logits, dim=-1) / length_penalty(
                 length=cand.size(1)
             )
@@ -164,7 +232,10 @@ def beam_search_decode(
         candidates = sorted(new_candidates, key=lambda x: x[1], reverse=True)
         candidates = candidates[:beam_size]
 
-    return candidates[0][0].squeeze(dim=0)
+    candidates = candidates[:topk]
+    outputs = [cand[0].squeeze(dim=0) for cand, _ in candidates]
+
+    return outputs
 
 
 @torch.no_grad()
@@ -180,37 +251,31 @@ def evaluate(
 
     # Set model to evaluation mode
     model.eval()
-
     eval_stats = Statistics()
 
-    print("Evaluating model...")
-
     for batch in val_dataloader:
-        """
-        encoder_input (batch_size, seq_length)
-        decoder_input (batch_size, seq_length)
-        label (batch_size, seq_length)
-        logits (batch_size, seq_length, vocab_size)
-        pred (batch_size, seq_length)
-        """
+        # encoder_input (batch_size, seq_length)
+        # decoder_input (batch_size, seq_length)
+        # label (batch_size, seq_length)
         encoder_input = batch["src"].to(device=device)
         decoder_input = batch["tgt"].to(device=device)
         label = batch["label"].to(device=device)
 
-        src_attention_mask = (encoder_input != pad_token_id).to(
-            device=device,
-            dtype=torch.int64,
-        )
-        tgt_attention_mask = (decoder_input != pad_token_id).to(
-            device=device,
-            dtype=torch.int64,
-        )
+        encoder_attention_mask = create_encoder_mask(
+            encoder_input=encoder_input,
+            pad_token_id=pad_token_id,
+        ).to(torch.int64)
+        decoder_attention_mask = create_decoder_mask(
+            decoder_input=decoder_input,
+            pad_token_id=pad_token_id,
+        ).to(torch.int64)
 
+        # logits (batch_size, seq_length, vocab_size)
         logits = model(
             input_ids=encoder_input,
-            attention_mask=src_attention_mask,
+            attention_mask=encoder_attention_mask,
             decoder_input_ids=decoder_input,
-            decoder_attention_mask=tgt_attention_mask,
+            decoder_attention_mask=decoder_attention_mask,
         )
 
         loss = criterion(logits.view(-1, logits.size(-1)), label.view(-1))

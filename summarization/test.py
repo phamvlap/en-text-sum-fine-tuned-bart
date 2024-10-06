@@ -65,6 +65,7 @@ def test(config: dict) -> None:
         seq_length=config["seq_length"],
         device=device,
         beam_size=config["beam_size"],
+        topk=config["topk"],
         log_examples=config["log_examples"],
         logging_steps=config["logging_steps"],
         use_stemmer=config["use_stemmer"],
