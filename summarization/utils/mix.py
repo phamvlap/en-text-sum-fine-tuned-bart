@@ -53,3 +53,7 @@ def load_config(config_path: str) -> dict:
     config["device"] = "cuda" if torch.cuda.is_available() else "cpu"
 
     return config
+
+
+def is_torch_cuda_available() -> bool:
+    return torch.cuda.is_available()

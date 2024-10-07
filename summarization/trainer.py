@@ -15,6 +15,7 @@ from .utils.statistics import Statistics
 from .utils.eval import evaluate
 from .utils.rouge import compute_dataset_rouge
 from .utils.path import get_weights_file_path, make_dir
+from .utils.mix import is_torch_cuda_available
 
 
 @dataclass
@@ -43,6 +44,7 @@ class TrainingConfig:
     use_stemmer: bool = True
     accumulate: Literal["best", "avg"] = "best"
     max_grad_norm: Optional[float] = None
+    f16_precision: bool = True
 
 
 class Trainer:
@@ -66,12 +68,15 @@ class Trainer:
         self.config = config
         self.bart_config = bart_config
         self.train_stats = Statistics()
+
         # Automatic Mixed Precision
+        # GradScaler: scales the loss and optimizer step
         self.scaler = None
-        if torch.cuda.is_available():
+        if self.config.f16_precision and is_torch_cuda_available():
             self.scaler = torch.amp.GradScaler("cuda")
             if scaler_state_dict is not None:
                 self.scaler.load_state_dict(scaler_state_dict)
+
         # Wandb logger
         wandb.login(key=self.config.wandb_key)
         log_dir = (
@@ -120,10 +125,12 @@ class Trainer:
                     dtype=torch.int64,
                 )
 
+                # Forward pass with autocast
+                # Auto cast to float16 in certain parts of the model, while maintaining float32 precision in other parts
                 with torch.autocast(
                     device_type=self.config.device.type,
                     dtype=torch.float16,
-                    enabled=torch.cuda.is_available(),
+                    enabled=self.config.f16_precision and is_torch_cuda_available(),
                 ):
                     # logits (batch_size, seq_length, vocab_size)
                     logits = self.model(
@@ -138,7 +145,7 @@ class Trainer:
                         logits.view(-1, logits.size(-1)), label.view(-1)
                     )
 
-                if torch.cuda.is_available() and self.scaler is not None:
+                if is_torch_cuda_available() and self.scaler is not None:
                     # Backpropagation
                     self.scaler.scale(loss).backward()
                     # Clip gradients norm
@@ -234,7 +241,7 @@ class Trainer:
             "optimizer_state_dict": self.optimizer.state_dict(),
             "config": self.bart_config,
         }
-        if torch.cuda.is_available() and self.scaler is not None:
+        if self.scaler is not None:
             checkpoint_states["scaler_state_dict"] = self.scaler.state_dict()
         if self.lr_scheduler is not None:
             checkpoint_states["lr_scheduler_state_dict"] = (

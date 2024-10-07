@@ -7,7 +7,7 @@ from .summarization_dataset import get_dataloader
 from .trainer import Trainer, TrainingConfig
 from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
-from .utils.mix import count_parameters
+from .utils.mix import count_parameters, is_torch_cuda_available
 from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_paths
 from .utils.optimizer import get_optimizer
 from .utils.lr_scheduler import get_lr_scheduler
@@ -24,7 +24,7 @@ def train(config: dict) -> None:
     )
 
     device = torch.device(config["device"])
-    if torch.cuda.is_available():
+    if is_torch_cuda_available():
         print(f"Using GPU: {torch.cuda.get_device_name()}")
     else:
         print("Using CPU")
@@ -165,6 +165,7 @@ def train(config: dict) -> None:
         use_stemmer=config["use_stemmer"],
         accumulate=config["accumulate"],
         max_grad_norm=config["max_grad_norm"],
+        f16_precision=config["f16_precision"],
     )
 
     trainer = Trainer(
