@@ -1,4 +1,3 @@
-import wandb
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -14,8 +13,9 @@ from bart.constants import SpecialToken, RougeKey
 from .utils.statistics import Statistics
 from .utils.eval import evaluate
 from .utils.rouge import compute_dataset_rouge
-from .utils.path import get_weights_file_path, make_dir
+from .utils.path import get_weights_file_path
 from .utils.mix import is_torch_cuda_available
+from .utils.wb_logger import WandbLogger
 
 
 @dataclass
@@ -25,10 +25,6 @@ class TrainingConfig:
     num_epochs: int
     model_dir: str
     model_basename: str
-    wandb_project: str
-    wandb_key: str
-    wandb_notes: Optional[str] = None
-    wandb_log_dir: Optional[str] = None
     initial_epoch: int = 0
     initial_global_step: int = 0
     evaluating_steps: int = 1000
@@ -58,6 +54,7 @@ class Trainer:
         bart_config: FineTunedBartForGenerationConfig,
         lr_scheduler: Optional[optim.lr_scheduler.LRScheduler] = None,
         scaler_state_dict: Optional[dict] = None,
+        wb_logger: Optional[WandbLogger] = None,
     ) -> None:
         self.model = model
         self.optimizer = optimizer
@@ -68,6 +65,7 @@ class Trainer:
         self.config = config
         self.bart_config = bart_config
         self.train_stats = Statistics()
+        self.wb_logger = wb_logger
 
         # Automatic Mixed Precision
         # GradScaler: scales the loss and optimizer step
@@ -76,19 +74,6 @@ class Trainer:
             self.scaler = torch.amp.GradScaler("cuda")
             if scaler_state_dict is not None:
                 self.scaler.load_state_dict(scaler_state_dict)
-
-        # Wandb logger
-        wandb.login(key=self.config.wandb_key)
-        log_dir = (
-            self.config.wandb_log_dir if self.config.wandb_log_dir else "wandb-logs"
-        )
-        make_dir(log_dir)
-        self.run = wandb.init(
-            project=self.config.wandb_project,
-            config=self.bart_config.__dict__,
-            dir=log_dir,
-            notes=self.config.wandb_notes,
-        )
 
     def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader) -> None:
         # Set model to train mode
@@ -173,7 +158,8 @@ class Trainer:
                 batch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
                 global_step += 1
 
-                self.run.log({"train/loss": loss.item()})
+                if self.wb_logger is not None:
+                    self.wb_logger.log({"loss": loss.item()})
 
                 if global_step % self.config.evaluating_steps == 0:
                     eval_stats = evaluate(
@@ -207,7 +193,7 @@ class Trainer:
             # Save model
             self._save_checkpoint(global_step=global_step, epoch=epoch)
 
-        self.run.finish()
+        self.wb_logger.finish()
 
     def _update_metrics(
         self,
@@ -216,14 +202,14 @@ class Trainer:
         rouge_score: dict[str, float],
     ) -> None:
         train_stats_result = self.train_stats.compute()
-        for key, value in train_stats_result.items():
-            self.run.log({f"train/{key}": value})
-        eval_stats_result = eval_stats.compute()
-        for key, value in eval_stats_result.items():
-            self.run.log({f"val/{key}": value})
-
-        for key, value in rouge_score.items():
-            self.run.log({f"val/{key}": value})
+        if self.wb_logger is not None:
+            for key, value in train_stats_result.items():
+                self.wb_logger.log({f"{key}": value})
+            eval_stats_result = eval_stats.compute()
+            for key, value in eval_stats_result.items():
+                self.wb_logger.log({f"eval_{key}": value}, step=step)
+            for key, value in rouge_score.items():
+                self.wb_logger.log({f"eval_{key}": value}, step=step)
 
         # Reset statistics after writing to wandb
         self.train_stats.reset()

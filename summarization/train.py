@@ -11,6 +11,7 @@ from .utils.mix import count_parameters, is_torch_cuda_available
 from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_paths
 from .utils.optimizer import get_optimizer
 from .utils.lr_scheduler import get_lr_scheduler
+from .utils.wb_logger import WandbLogger
 
 
 def train(config: dict) -> None:
@@ -153,10 +154,6 @@ def train(config: dict) -> None:
         num_epochs=config["epochs"],
         model_dir=config["model_dir"],
         model_basename=config["model_basename"],
-        wandb_project=config["wandb_project"],
-        wandb_key=config["wandb_key"],
-        wandb_notes=None,
-        wandb_log_dir=config["wandb_log_dir"],
         evaluating_steps=config["evaluating_steps"],
         beam_size=config["beam_size"],
         topk=config["topk"],
@@ -168,6 +165,14 @@ def train(config: dict) -> None:
         f16_precision=config["f16_precision"],
     )
 
+    wb_logger = WandbLogger(
+        project_name=config["wandb_project_name"],
+        trainer_args=training_config,
+        model_config=bart_model_config,
+        wandb_key=config["wandb_key"],
+        wandb_log_dir=config["wandb_log_dir"],
+    )
+
     trainer = Trainer(
         model=bart_model,
         optimizer=optimizer,
@@ -177,6 +182,7 @@ def train(config: dict) -> None:
         config=training_config,
         bart_config=bart_model_config,
         scaler_state_dict=scaler_state_dict,
+        wb_logger=wb_logger,
     )
 
     trainer.train(
