@@ -4,7 +4,7 @@ import torch.nn as nn
 from bart.model import build_bart_model, FineTunedBartForGenerationConfig
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
-from .trainer import Trainer, TrainingConfig
+from .trainer import Trainer, TrainingArguments
 from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
 from .utils.mix import count_parameters, is_torch_cuda_available
@@ -146,7 +146,7 @@ def train(config: dict) -> None:
         label_smoothing=config["label_smoothing"],
     ).to(device=device)
 
-    training_config = TrainingConfig(
+    training_args = TrainingArguments(
         device=device,
         seq_length=config["seq_length"],
         initial_epoch=initial_epoch,
@@ -154,7 +154,8 @@ def train(config: dict) -> None:
         num_epochs=config["epochs"],
         model_dir=config["model_dir"],
         model_basename=config["model_basename"],
-        evaluating_steps=config["evaluating_steps"],
+        eval_every_n_steps=config["eval_every_n_steps"],
+        save_every_n_steps=config["save_every_n_steps"],
         beam_size=config["beam_size"],
         topk=config["topk"],
         log_examples=config["log_examples"],
@@ -167,7 +168,7 @@ def train(config: dict) -> None:
 
     wb_logger = WandbLogger(
         project_name=config["wandb_project_name"],
-        trainer_args=training_config,
+        training_args=training_args,
         model_config=bart_model_config,
         wandb_key=config["wandb_key"],
         wandb_log_dir=config["wandb_log_dir"],
@@ -179,7 +180,7 @@ def train(config: dict) -> None:
         lr_scheduler=lr_scheduler,
         tokenizer=tokenizer,
         criterion=loss_fn,
-        config=training_config,
+        args=training_args,
         bart_config=bart_model_config,
         scaler_state_dict=scaler_state_dict,
         wb_logger=wb_logger,

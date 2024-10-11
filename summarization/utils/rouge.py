@@ -89,8 +89,8 @@ def compute_dataset_rouge(
     print("Computing ROUGE Score...")
 
     for idx, data in enumerate(dataset):
-        encoder_input = data["src"]
-        label = data["label"]
+        encoder_input = data["encoder_input"]
+        labels = data["labels"]
 
         if beam_size is not None and beam_size > 1:
             cands = beam_search_decode(
@@ -113,7 +113,7 @@ def compute_dataset_rouge(
             )
 
         src_tokens = encoder_input.detach().cpu().numpy()
-        tgt_tokens = label.detach().cpu().numpy()
+        tgt_tokens = labels.detach().cpu().numpy()
         if isinstance(pred_tokens, Tensor):
             pred_tokens = pred_tokens.detach().cpu().numpy()
 

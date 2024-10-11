@@ -19,7 +19,7 @@ from .utils.wb_logger import WandbLogger
 
 
 @dataclass
-class TrainingConfig:
+class TrainingArguments:
     device: torch.device
     seq_length: int
     num_epochs: int
@@ -27,7 +27,8 @@ class TrainingConfig:
     model_basename: str
     initial_epoch: int = 0
     initial_global_step: int = 0
-    evaluating_steps: int = 1000
+    eval_every_n_steps: int = 5000
+    save_every_n_steps: int = 5000
     beam_size: Optional[int] = None
     topk: int = 1
     log_examples: bool = True
@@ -50,7 +51,7 @@ class Trainer:
         optimizer: optim.Optimizer,
         tokenizer: BartTokenizer,
         criterion: nn.CrossEntropyLoss,
-        config: TrainingConfig,
+        args: TrainingArguments,
         bart_config: FineTunedBartForGenerationConfig,
         lr_scheduler: Optional[optim.lr_scheduler.LRScheduler] = None,
         scaler_state_dict: Optional[dict] = None,
@@ -62,7 +63,7 @@ class Trainer:
         self.lr_scheduler = lr_scheduler
         self.tokenizer = tokenizer
         self.pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
-        self.config = config
+        self.args = args
         self.bart_config = bart_config
         self.train_stats = Statistics()
         self.wb_logger = wb_logger
@@ -70,7 +71,7 @@ class Trainer:
         # Automatic Mixed Precision
         # GradScaler: scales the loss and optimizer step
         self.scaler = None
-        if self.config.f16_precision and is_torch_cuda_available():
+        if self.args.f16_precision and is_torch_cuda_available():
             self.scaler = torch.amp.GradScaler("cuda")
             if scaler_state_dict is not None:
                 self.scaler.load_state_dict(scaler_state_dict)
@@ -79,43 +80,43 @@ class Trainer:
         # Set model to train mode
         self.model.train()
 
-        global_step = self.config.initial_global_step
+        global_step = self.args.initial_global_step
 
         # Traing loop
-        for epoch in range(self.config.initial_epoch, self.config.num_epochs):
+        for epoch in range(self.args.initial_epoch, self.args.num_epochs):
             # Empty cache
             torch.cuda.empty_cache()
 
             batch_iterator = tqdm(
                 train_dataloader,
-                desc=f"Training epoch {epoch + 1}/{self.config.num_epochs}",
+                desc=f"Training epoch {epoch + 1}/{self.args.num_epochs}",
             )
 
             for batch in batch_iterator:
                 # encoder_input (batch_size, seq_length)
                 # decoder_input(batch_size, seq_length)
-                # label (batch_size, seq_length)
-                encoder_input = batch["src"].to(device=self.config.device)
-                decoder_input = batch["tgt"].to(device=self.config.device)
-                label = batch["label"].to(device=self.config.device)
+                # labels (batch_size, seq_length)
+                encoder_input = batch["encoder_input"].to(device=self.args.device)
+                decoder_input = batch["decoder_input"].to(device=self.args.device)
+                labels = batch["labels"].to(device=self.args.device)
 
                 self.optimizer.zero_grad(set_to_none=True)
 
                 src_attention_mask = (encoder_input != self.pad_token_id).to(
-                    device=self.config.device,
+                    device=self.args.device,
                     dtype=torch.int64,
                 )
                 tgt_attention_mask = (decoder_input != self.pad_token_id).to(
-                    device=self.config.device,
+                    device=self.args.device,
                     dtype=torch.int64,
                 )
 
                 # Forward pass with autocast
                 # Auto cast to float16 in certain parts of the model, while maintaining float32 precision in other parts
                 with torch.autocast(
-                    device_type=self.config.device.type,
+                    device_type=self.args.device.type,
                     dtype=torch.float16,
-                    enabled=self.config.f16_precision and is_torch_cuda_available(),
+                    enabled=self.args.f16_precision and is_torch_cuda_available(),
                 ):
                     # logits (batch_size, seq_length, vocab_size)
                     logits = self.model(
@@ -127,7 +128,7 @@ class Trainer:
 
                     # Compute loss
                     loss = self.criterion(
-                        logits.view(-1, logits.size(-1)), label.view(-1)
+                        logits.view(-1, logits.size(-1)), labels.view(-1)
                     )
 
                 if is_torch_cuda_available() and self.scaler is not None:
@@ -135,13 +136,13 @@ class Trainer:
                     self.scaler.scale(loss).backward()
                     # Clip gradients norm
                     if (
-                        self.config.max_grad_norm is not None
-                        and self.config.max_grad_norm > 0
+                        self.args.max_grad_norm is not None
+                        and self.args.max_grad_norm > 0
                     ):
                         self.scaler.unscale_(self.optimizer)
                         torch.nn.utils.clip_grad_norm_(
                             parameters=self.model.parameters(),
-                            max_norm=self.config.max_grad_norm,
+                            max_norm=self.args.max_grad_norm,
                         )
                     # Update weights and learning rate
                     self.scaler.step(self.optimizer)
@@ -161,27 +162,27 @@ class Trainer:
                 if self.wb_logger is not None:
                     self.wb_logger.log({"loss": loss.item()})
 
-                if global_step % self.config.evaluating_steps == 0:
+                if global_step % self.args.eval_every_n_steps == 0:
                     eval_stats = evaluate(
                         model=self.model,
                         val_dataloader=val_dataloader,
                         tokenizer=self.tokenizer,
                         criterion=self.criterion,
-                        device=self.config.device,
+                        device=self.args.device,
                     )
                     rouge_score = compute_dataset_rouge(
                         model=self.model,
                         dataset=val_dataloader.dataset,
                         tokenizer=self.tokenizer,
-                        seq_length=self.config.seq_length,
-                        device=self.config.device,
-                        beam_size=self.config.beam_size,
-                        topk=self.config.topk,
-                        log_examples=self.config.log_examples,
-                        logging_steps=self.config.logging_steps,
-                        rouge_keys=self.config.rouge_keys,
-                        use_stemmer=self.config.use_stemmer,
-                        accumulate=self.config.accumulate,
+                        seq_length=self.args.seq_length,
+                        device=self.args.device,
+                        beam_size=self.args.beam_size,
+                        topk=self.args.topk,
+                        log_examples=self.args.log_examples,
+                        logging_steps=self.args.logging_steps,
+                        rouge_keys=self.args.rouge_keys,
+                        use_stemmer=self.args.use_stemmer,
+                        accumulate=self.args.accumulate,
                     )
 
                     self._update_metrics(
@@ -190,8 +191,9 @@ class Trainer:
                         rouge_score=rouge_score,
                     )
 
-            # Save model
-            self._save_checkpoint(global_step=global_step, epoch=epoch)
+                # Save model
+                if global_step % self.args.save_every_n_steps == 0:
+                    self._save_checkpoint(global_step=global_step, epoch=epoch)
 
         self.wb_logger.finish()
 
@@ -204,7 +206,7 @@ class Trainer:
         train_stats_result = self.train_stats.compute()
         if self.wb_logger is not None:
             for key, value in train_stats_result.items():
-                self.wb_logger.log({f"{key}": value})
+                self.wb_logger.log({f"{key}": value}, step=step)
             eval_stats_result = eval_stats.compute()
             for key, value in eval_stats_result.items():
                 self.wb_logger.log({f"eval_{key}": value}, step=step)
@@ -216,8 +218,8 @@ class Trainer:
 
     def _save_checkpoint(self, global_step: int, epoch: int) -> None:
         model_filepath = get_weights_file_path(
-            model_basedir=self.config.model_dir,
-            model_basename=self.config.model_basename,
+            model_basedir=self.args.model_dir,
+            model_basename=self.args.model_basename,
             epoch=epoch,
         )
         checkpoint_states = {

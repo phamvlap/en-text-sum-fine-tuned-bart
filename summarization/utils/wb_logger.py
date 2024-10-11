@@ -4,7 +4,7 @@ from typing import Optional
 
 from bart.model import FineTunedBartForGenerationConfig
 from .path import make_dir
-from ..trainer import TrainingConfig
+from ..trainer import TrainingArguments
 
 DEFAULT_LOG_DIR = "wandb-logs"
 
@@ -27,13 +27,13 @@ class WandbLogger:
     def __init__(
         self,
         project_name: str,
-        trainer_args: TrainingConfig,
+        training_args: TrainingArguments,
         model_config: FineTunedBartForGenerationConfig,
         **kwargs,
     ) -> None:
         combined_config = {
             "model_config": model_config.__dict__,
-            "trainer_args": trainer_args.__dict__,
+            "training_args": training_args.__dict__,
         }
         log_dir = kwargs.get("log_dir", DEFAULT_LOG_DIR)
         make_dir(log_dir)

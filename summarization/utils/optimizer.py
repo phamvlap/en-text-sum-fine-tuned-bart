@@ -6,7 +6,7 @@ ADAMW = "adamw"
 
 
 def get_optimizer(model: nn.Module, config: dict) -> optim.Optimizer:
-    optimizer_alg = config["optimizer"]
+    optimizer_alg = config["optimizer"].strip().lower()
 
     if optimizer_alg == ADAM:
         optimizer = optim.Adam(

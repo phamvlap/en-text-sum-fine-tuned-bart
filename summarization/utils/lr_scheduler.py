@@ -24,7 +24,7 @@ def get_lr_scheduler(
     optimizer: optim.Optimizer,
     config: dict,
 ) -> Optional[optim.lr_scheduler.LRScheduler]:
-    lr_scheduler_type = config["lr_scheduler"].lower()
+    lr_scheduler_type = config["lr_scheduler"].strip().lower()
     lr_scheduler = None
 
     if lr_scheduler_type == NOAM_DECAY:

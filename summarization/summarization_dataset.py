@@ -51,7 +51,7 @@ class SummarizationDataset(Dataset):
                 Tensor(self.tokenizer.encode(text_tgt)),
             ]
         )
-        label = torch.cat(
+        labels = torch.cat(
             [
                 Tensor(self.tokenizer.encode(text_tgt)),
                 Tensor([self.eos_token_id]),
@@ -67,26 +67,26 @@ class SummarizationDataset(Dataset):
             )
         if len(tgt_tokens) > self.seq_length:
             tgt_tokens = tgt_tokens[: self.seq_length]
-        if len(label) > self.seq_length:
-            label = torch.cat(
+        if len(labels) > self.seq_length:
+            labels = torch.cat(
                 [
-                    label[: self.seq_length - 1],
+                    labels[: self.seq_length - 1],
                     Tensor([self.eos_token_id]),
                 ]
             )
 
         src_tokens = src_tokens.type(torch.int64)
         tgt_tokens = tgt_tokens.type(torch.int64)
-        label = label.type(torch.int64)
+        labels = labels.type(torch.int64)
 
         assert src_tokens.size(-1) <= self.seq_length
         assert tgt_tokens.size(-1) <= self.seq_length
-        assert label.size(-1) <= self.seq_length
+        assert labels.size(-1) <= self.seq_length
 
         return {
-            "src": src_tokens,
-            "tgt": tgt_tokens,
-            "label": label,
+            "encoder_input": src_tokens,
+            "decoder_input": tgt_tokens,
+            "labels": labels,
         }
 
 
@@ -114,9 +114,9 @@ def collate_fn(batch: list, tokenizer: BartTokenizer) -> dict:
 
     src_batch, tgt_batch, label_batch = [], [], []
     for item in batch:
-        src_batch.append(item["src"])
-        tgt_batch.append(item["tgt"])
-        label_batch.append(item["label"])
+        src_batch.append(item["encoder_input"])
+        tgt_batch.append(item["decoder_input"])
+        label_batch.append(item["labels"])
 
     src_batch = pad_sequence(
         src_batch,
@@ -135,9 +135,9 @@ def collate_fn(batch: list, tokenizer: BartTokenizer) -> dict:
     )
 
     return {
-        "src": src_batch,
-        "tgt": tgt_batch,
-        "label": label_batch,
+        "encoder_input": src_batch,
+        "decoder_input": tgt_batch,
+        "labels": label_batch,
     }
 
 

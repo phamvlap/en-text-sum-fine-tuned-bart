@@ -256,10 +256,10 @@ def evaluate(
     for batch in val_dataloader:
         # encoder_input (batch_size, seq_length)
         # decoder_input (batch_size, seq_length)
-        # label (batch_size, seq_length)
-        encoder_input = batch["src"].to(device=device)
-        decoder_input = batch["tgt"].to(device=device)
-        label = batch["label"].to(device=device)
+        # labels (batch_size, seq_length)
+        encoder_input = batch["encoder_input"].to(device=device)
+        decoder_input = batch["decoder_input"].to(device=device)
+        labels = batch["labels"].to(device=device)
 
         encoder_attention_mask = create_encoder_mask(
             encoder_input=encoder_input,
@@ -278,7 +278,7 @@ def evaluate(
             decoder_attn_mask=decoder_attention_mask,
         )
 
-        loss = criterion(logits.view(-1, logits.size(-1)), label.view(-1))
+        loss = criterion(logits.view(-1, logits.size(-1)), labels.view(-1))
         eval_stats.update(loss=loss.item())
 
     # Set model back to training mode
