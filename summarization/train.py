@@ -1,5 +1,9 @@
+import os
 import torch
 import torch.nn as nn
+
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.distributed import init_process_group, destroy_process_group
 
 from bart.model import build_bart_model, FineTunedBartForGenerationConfig
 from bart.constants import SpecialToken
@@ -13,6 +17,19 @@ from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_
 from .utils.optimizer import get_optimizer
 from .utils.lr_scheduler import get_lr_scheduler
 from .utils.wb_logger import WandbLogger
+
+
+def ddp_setup(config: dict) -> None:
+    config["rank"] = int(os.environ.get("RANK", -1))
+    config["local_rank"] = int(os.environ.get("LOCAL_RANK", -1))
+    config["world_size"] = int(os.environ.get("WORLD_SIZE", 0))
+    config["use_ddp"] = config["rank"] >= 0
+
+    if config["use_ddp"]:
+        # Initialize the process group
+        torch.cuda.set_device(config["local_rank"])
+        # Use NCCL backend for communication between processes
+        init_process_group(backend="nccl")
 
 
 def train(config: dict) -> None:
@@ -128,10 +145,21 @@ def train(config: dict) -> None:
         if "scaler_state_dict" in checkpoint_states:
             scaler_state_dict = checkpoint_states["scaler_state_dict"]
 
-    print(f"The model has {count_parameters(bart_model):,} trainable parameters.")
+    original_bart_model = bart_model
+    if config["use_ddp"]:
+        bart_model = DDP(
+            bart_model,
+            device_ids=[config["local_rank"]],
+            output_device=config["local_rank"],
+            find_unused_parameters=True,
+        )
+
+    print(
+        f"The model has {count_parameters(original_bart_model):,} trainable parameters."
+    )
 
     # Optimizer
-    optimizer = get_optimizer(model=bart_model, config=config)
+    optimizer = get_optimizer(model=original_bart_model, config=config)
 
     # Learning rate scheduler
     lr_scheduler = get_lr_scheduler(optimizer=optimizer, config=config)
@@ -191,3 +219,15 @@ def train(config: dict) -> None:
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
     )
+
+
+def main(config: dict) -> None:
+    # Set up Distributed Data Parallel (DDP) is available
+    ddp_setup(config)
+
+    # Train model
+    train(config)
+
+    # Clean up DDP
+    if config["use_ddp"]:
+        destroy_process_group()

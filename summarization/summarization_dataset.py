@@ -3,6 +3,7 @@ import torch
 
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.distributed import DistributedSampler
 from torch.nn.utils.rnn import pad_sequence
 from transformers import BartTokenizer
 from typing import Literal
@@ -157,12 +158,25 @@ def get_dataloader(
         seq_length=config["seq_length"],
     )
 
+    sampler = None
+    if config["use_ddp"]:
+        sampler = DistributedSampler(
+            dataset,
+            num_replicas=config["world_size"],
+            rank=config["rank"],
+            shuffle=True,
+            seed=config["seed"],
+        )
+
+    is_shuffle = sampler is None and shuffle
+
     dataloader = DataLoader(
         dataset=dataset,
         batch_size=batch_size,
-        shuffle=shuffle,
+        shuffle=is_shuffle,
         collate_fn=lambda batch: collate_fn(batch=batch, tokenizer=tokenizer),
         pin_memory=True,
+        sampler=sampler,
     )
 
     return dataloader

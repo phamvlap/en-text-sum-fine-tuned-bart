@@ -57,3 +57,12 @@ def load_config(config_path: str) -> dict:
 
 def is_torch_cuda_available() -> bool:
     return torch.cuda.is_available()
+
+
+def write_to_yaml(data: dict, file_path: str | Path) -> None:
+    file_path = str(file_path)
+    parent_dir = file_path.rsplit("/", 1)[0]
+    make_dir(parent_dir)
+
+    with open(file_path, "w") as file:
+        yaml.dump(data, file, default_flow_style=False)
