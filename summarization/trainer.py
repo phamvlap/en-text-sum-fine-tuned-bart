@@ -126,6 +126,12 @@ class Trainer:
                     self.optimizer.step()
 
                 if self.lr_scheduler is not None:
+                    if self.wb_logger is not None:
+                        for idx, lr_value in enumerate(self.lr_scheduler.get_last_lr()):
+                            self.wb_logger.log(
+                                {f"learning_rate_{idx}": lr_value},
+                                step=global_step,
+                            )
                     self.lr_scheduler.step()
 
                 self.train_stats.update(loss=loss.item())

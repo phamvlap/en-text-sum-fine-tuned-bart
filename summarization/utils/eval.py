@@ -78,10 +78,7 @@ def greedy_search_decode(
 
     # decoder_input (1, 1)
     decoder_input = (
-        torch.empty(1, 1)
-        .fill_(value=bos_token_id)
-        .type_as(input_ids)
-        .to(device=device),
+        torch.empty(1, 1).fill_(value=bos_token_id).type_as(input_ids).to(device=device)
     )
 
     for _ in range(seq_length):
@@ -166,10 +163,7 @@ def beam_search_decode(
 
     # Initialize decoder input with only <s> token (1, 1)
     decoder_input = (
-        torch.empty(1, 1)
-        .fill_(value=bos_token_id)
-        .type_as(input_ids)
-        .to(device=device),
+        torch.empty(1, 1).fill_(value=bos_token_id).type_as(input_ids).to(device=device)
     )
 
     # Candidate list ccontaints tuples of (cand, log_score)

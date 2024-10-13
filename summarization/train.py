@@ -195,10 +195,14 @@ def train(config: dict) -> None:
         f16_precision=config["f16_precision"],
     )
 
+    saved_config = {
+        "model_config": bart_model_config.__dict__,
+        "training_args": training_args.__dict__,
+    }
+
     wb_logger = WandbLogger(
         project_name=config["wandb_project_name"],
-        training_args=training_args,
-        model_config=bart_model_config,
+        config=saved_config,
         key=config["wandb_key"],
         log_dir=config["wandb_log_dir"],
     )

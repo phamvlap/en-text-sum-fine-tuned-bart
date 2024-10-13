@@ -2,9 +2,7 @@ import wandb
 
 from typing import Optional
 
-from bart.model import FineTunedBartForGenerationConfig
 from .path import make_dir
-from ..trainer_utils import TrainingArguments
 
 DEFAULT_LOG_DIR = "wandb-logs"
 
@@ -24,17 +22,7 @@ def format_logs(logs: dict) -> dict:
 
 
 class WandbLogger:
-    def __init__(
-        self,
-        project_name: str,
-        training_args: TrainingArguments,
-        model_config: FineTunedBartForGenerationConfig,
-        **kwargs,
-    ) -> None:
-        combined_config = {
-            "model_config": model_config.__dict__,
-            "training_args": training_args.__dict__,
-        }
+    def __init__(self, project_name: str, config: dict, **kwargs) -> None:
         log_dir = kwargs.get("log_dir", DEFAULT_LOG_DIR)
         make_dir(log_dir)
         wandb_key = kwargs.get("key", None)
@@ -48,7 +36,7 @@ class WandbLogger:
         wandb.login(key=wandb_key)
         self.wb_run = wandb.init(
             project=project_name,
-            config=combined_config,
+            config=config,
             dir=log_dir,
             **args,
         )
