@@ -37,11 +37,13 @@ class WandbLogger:
         }
         log_dir = kwargs.get("log_dir", DEFAULT_LOG_DIR)
         make_dir(log_dir)
-        wandb_key = kwargs.get("wandb_key", None)
+        wandb_key = kwargs.get("key", None)
 
         args = {**kwargs}
-        if "wandb_key" in args:
-            del args["wandb_key"]
+        if "key" in args:
+            del args["key"]
+        if "log_dir" in args:
+            del args["log_dir"]
 
         wandb.login(key=wandb_key)
         self.wb_run = wandb.init(

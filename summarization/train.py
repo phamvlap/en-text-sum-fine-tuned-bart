@@ -171,8 +171,8 @@ def train(config: dict) -> None:
         project_name=config["wandb_project_name"],
         training_args=training_args,
         model_config=bart_model_config,
-        wandb_key=config["wandb_key"],
-        wandb_log_dir=config["wandb_log_dir"],
+        key=config["wandb_key"],
+        log_dir=config["wandb_log_dir"],
     )
 
     trainer = Trainer(
