@@ -4,7 +4,7 @@ from typing import Optional
 
 from bart.model import FineTunedBartForGenerationConfig
 from .path import make_dir
-from ..trainer import TrainingArguments
+from ..trainer_utils import TrainingArguments
 
 DEFAULT_LOG_DIR = "wandb-logs"
 

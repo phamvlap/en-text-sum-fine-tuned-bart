@@ -5,43 +5,17 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from transformers import BartTokenizer
 from tqdm import tqdm
-from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Optional
 
 from bart.model import FineTunedBartForGeneration, FineTunedBartForGenerationConfig
-from bart.constants import SpecialToken, RougeKey
+from bart.constants import SpecialToken
 from .utils.statistics import Statistics
 from .utils.eval import evaluate
 from .utils.rouge import compute_dataset_rouge
 from .utils.path import get_weights_file_path
 from .utils.mix import is_torch_cuda_available
 from .utils.wb_logger import WandbLogger
-
-
-@dataclass
-class TrainingArguments:
-    device: torch.device
-    seq_length: int
-    num_epochs: int
-    model_dir: str
-    model_basename: str
-    initial_epoch: int = 0
-    initial_global_step: int = 0
-    eval_every_n_steps: int = 5000
-    save_every_n_steps: int = 5000
-    beam_size: Optional[int] = None
-    topk: int = 1
-    log_examples: bool = True
-    logging_steps: int = 100
-    rouge_keys: list[str] | tuple[str] = (
-        RougeKey.ROUGE_1,
-        RougeKey.ROUGE_2,
-        RougeKey.ROUGE_L,
-    )
-    use_stemmer: bool = True
-    accumulate: Literal["best", "avg"] = "best"
-    max_grad_norm: Optional[float] = None
-    f16_precision: bool = True
+from .trainer_utils import TrainingArguments
 
 
 class Trainer:

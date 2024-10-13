@@ -4,7 +4,8 @@ import torch.nn as nn
 from bart.model import build_bart_model, FineTunedBartForGenerationConfig
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
-from .trainer import Trainer, TrainingArguments
+from .trainer import Trainer
+from .trainer_utils import TrainingArguments
 from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
 from .utils.mix import count_parameters, is_torch_cuda_available
