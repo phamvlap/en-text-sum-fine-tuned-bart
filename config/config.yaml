@@ -13,13 +13,17 @@ data_files_path:
   val: dataset/val.csv
   test: dataset/test.csv
 raw_data_file_path: path/to/raw/data/file.csv
-text_src: document
-text_tgt: summary
+original_text_src: text
+original_text_tgt: headline
+text_src: article
+text_tgt: abstract
 train_size: 0.75
 val_size: 0.1
 test_size: 0.15
 is_sampling: False
 num_samples: 1000
+lowercase: True
+contractions: True
 
 # Tokenizer configs
 tokenizer_train_ds_path: path/to/train/tokenizer/file.csv
@@ -52,7 +56,7 @@ eps: 1e-9 # = 10 ** -9
 weight_decay: 0.0
 
 # Learning rate scheduler configs
-lr_scheduler: cosine # noam | cosine
+lr_scheduler: noam # noam | cosine
 
 # NoamLR scheduler configs
 warmup_steps: 4000
@@ -68,7 +72,8 @@ label_smoothing: 0.1
 # Training configs
 epochs: 10
 preload: latest
-evaluating_steps: 5000
+eval_every_n_steps: 5000
+save_every_n_steps: 5000
 max_grad_norm: 1.0
 f16_precision: True
 
@@ -113,6 +118,6 @@ topk: 2
 statistic_dir: trained/statistics
 
 # Wandb writer configs
-wandb_project: en-text-sum-bart
+wandb_project_name: en-text-sum-bart
 wandb_log_dir: wandb-logs
 wandb_key: wandb-key
