@@ -1,5 +1,9 @@
 from summarization.utils.mix import load_config
-from summarization.train import main
+from summarization.train import main as run_training_model
+
+
+def main(config: dict):
+    run_training_model(config)
 
 
 if __name__ == "__main__":
