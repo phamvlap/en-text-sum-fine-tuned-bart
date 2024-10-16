@@ -18,3 +18,8 @@ class RougeKey:
     ROUGE_1 = "rouge1"
     ROUGE_2 = "rouge2"
     ROUGE_L = "rougeL"
+
+
+class SentenceContractions:
+    LOWERCASE = "lower"
+    CONTRACTIONS = "contractions"

@@ -3,12 +3,14 @@ import pandas as pd
 from pathlib import Path
 from typing import Optional
 
-from bart.constants import DEFAULT_TRAIN_VAL_TEST_RATIO
+from bart.constants import DEFAULT_TRAIN_VAL_TEST_RATIO, SentenceContractions
 from .utils.tokenizer import load_tokenizer
 from .utils.dataset import (
     clean_dataset,
     remove_rows_by_invalid_seq_length,
     retain_columns,
+    preprocess_abstract_feature,
+    preprocess_article_feature,
 )
 from .utils.path import make_dir
 from .utils.seed import set_seed
@@ -66,12 +68,30 @@ def preprocess(config: dict) -> None:
 
     raw_data_file_path = config["raw_data_file_path"]
     raw_df = load_dataset(path=raw_data_file_path)
+    raw_df = raw_df.astype(str)
+
+    raw_df[config["text_src"]] = raw_df.apply(
+        lambda row: preprocess_article_feature(row[config["original_text_src"]]),
+        axis=1,
+    )
+    raw_df[config["text_tgt"]] = raw_df.apply(
+        lambda row: preprocess_abstract_feature(row[config["original_text_tgt"]]),
+        axis=1,
+    )
+
+    features = [config["text_src"], config["text_tgt"]]
+    df = retain_columns(df=raw_df, columns=features)
 
     tokenizer = None
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
 
-    features = [config["text_src"], config["text_tgt"]]
-    cleaned_df = clean_dataset(df=raw_df, features=features)
+    conditions = []
+    if config["lowercase"]:
+        conditions.append(SentenceContractions.LOWERCASE)
+    if config["contractions"]:
+        conditions.append(SentenceContractions.CONTRACTIONS)
+
+    cleaned_df = clean_dataset(df=df, features=features, conditions=conditions)
 
     num_keep_tokens = 2
     valid_df = remove_rows_by_invalid_seq_length(
@@ -81,7 +101,6 @@ def preprocess(config: dict) -> None:
         max_seq_length=config["seq_length"] - num_keep_tokens,
         min_seq_length=0,
     )
-    valid_df = retain_columns(df=valid_df, columns=features)
 
     if config["is_sampling"]:
         if (

@@ -4,6 +4,8 @@ import pandas as pd
 
 from transformers import BartTokenizer
 
+from bart.constants import SentenceContractions
+
 
 def remove_urls(text: str) -> str:
     return re.sub(r"http[s]?:\/\/\S+|www\.\S+", "", text, flags=re.MULTILINE)
@@ -20,9 +22,11 @@ def handle_punctuation(text: str) -> str:
     return text.strip()
 
 
-def handle_en_text(text: str) -> str:
-    text = str(text).lower()
-    text = contractions.fix(text)
+def handle_en_text(text: str, conditions: list[str] = []) -> str:
+    if SentenceContractions.LOWERCASE in conditions:
+        text = str(text).lower()
+    if SentenceContractions.CONTRACTIONS in conditions:
+        text = contractions.fix(text)
 
     text = remove_urls(text)
     text = remove_html_tags(text)
@@ -31,27 +35,39 @@ def handle_en_text(text: str) -> str:
     return text
 
 
-def handle_feature(df: pd.DataFrame, feature: str) -> pd.DataFrame:
+def handle_feature(
+    df: pd.DataFrame,
+    feature: str,
+    conditions: list[str] = [],
+) -> pd.DataFrame:
     if feature not in df.columns:
         raise ValueError(f"{feature} not found in dataset.")
-    df[feature] = df[[feature]].map(lambda s: handle_en_text(s))
+    df[feature] = df[[feature]].map(lambda s: handle_en_text(s, conditions))
     return df
 
 
-def handle_dataset_features(df: pd.DataFrame, features: list[str]) -> pd.DataFrame:
+def handle_dataset_features(
+    df: pd.DataFrame,
+    features: list[str],
+    conditions: list[str] = [],
+) -> pd.DataFrame:
     for feature in features:
         if feature not in df.columns:
             raise ValueError(f"{feature} not found in dataset.")
 
     for feature in features:
-        df = handle_feature(df=df, feature=feature)
+        df = handle_feature(df=df, feature=feature, conditions=conditions)
 
     return df
 
 
-def clean_dataset(df: pd.DataFrame, features: list[str]) -> pd.DataFrame:
+def clean_dataset(
+    df: pd.DataFrame,
+    features: list[str],
+    conditions: list[str] = [],
+) -> pd.DataFrame:
     df = df.dropna().drop_duplicates().reset_index(drop=True)
-    df = handle_dataset_features(df=df, features=features)
+    df = handle_dataset_features(df=df, features=features, conditions=conditions)
     return df
 
 
@@ -100,5 +116,22 @@ def retain_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
     for column in df.columns:
         if column not in columns:
             dropped_columns.append(column)
-    df = df.drop(columns=dropped_columns)
+    df = df.drop(columns=dropped_columns).reset_index(drop=True)
     return df
+
+
+def preprocess_abstract_feature(abstract: str) -> str:
+    abstract = re.sub(r"[\n]", " ", abstract)
+    abstract = re.sub(r"\.,", ". ", abstract)
+
+    return abstract
+
+
+def preprocess_article_feature(article: str) -> str:
+    article = re.sub(r"[\n]+", "\n", article)
+    article = re.sub(r"[\.;]\n,", ". ", article)
+    article = re.sub(r"[\n]", " ", article)
+    article = re.sub(r"[\.]+", ".", article)
+    article = re.sub(r"\.,", ".", article)
+
+    return article
