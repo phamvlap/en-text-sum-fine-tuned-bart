@@ -193,6 +193,9 @@ def train(config: dict) -> None:
         accumulate=config["accumulate"],
         max_grad_norm=config["max_grad_norm"],
         f16_precision=config["f16_precision"],
+        use_ddp=config["use_ddp"],
+        rank=config["rank"] if config["use_ddp"] else None,
+        local_rank=config["local_rank"] if config["use_ddp"] else None,
     )
 
     saved_config = {

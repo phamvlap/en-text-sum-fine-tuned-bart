@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from torch.utils.data import DataLoader
+from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import BartTokenizer
 from tqdm import tqdm
 from typing import Optional
@@ -21,7 +22,7 @@ from .trainer_utils import TrainingArguments
 class Trainer:
     def __init__(
         self,
-        model: FineTunedBartForGeneration,
+        model: FineTunedBartForGeneration | DDP,
         optimizer: optim.Optimizer,
         tokenizer: BartTokenizer,
         criterion: nn.CrossEntropyLoss,
@@ -61,10 +62,17 @@ class Trainer:
             # Empty cache
             torch.cuda.empty_cache()
 
-            batch_iterator = tqdm(
-                train_dataloader,
-                desc=f"Training epoch {epoch + 1}/{self.args.num_epochs}",
-            )
+            if self.args.use_ddp:
+                batch_iterator = tqdm(
+                    train_dataloader,
+                    desc=f"[GPU-{self.args.rank}] Training epoch {epoch + 1}/{self.args.num_epochs}",
+                    disable=self.args.local_rank != 0,
+                )
+            else:
+                batch_iterator = tqdm(
+                    train_dataloader,
+                    desc=f"Training epoch {epoch + 1}/{self.args.num_epochs}",
+                )
 
             for batch in batch_iterator:
                 # encoder_input (batch_size, seq_length)
@@ -151,7 +159,7 @@ class Trainer:
                         device=self.args.device,
                     )
                     rouge_score = compute_dataset_rouge(
-                        model=self.model,
+                        model=self.model.module if self.args.use_ddp else self.model,
                         dataset=val_dataloader.dataset,
                         tokenizer=self.tokenizer,
                         seq_length=self.args.seq_length,
@@ -202,10 +210,15 @@ class Trainer:
             model_basename=self.args.model_basename,
             epoch=epoch,
         )
+        model_state_dict = (
+            self.model.module.state_dict()
+            if self.args.use_ddp
+            else self.model.state_dict()
+        )
         checkpoint_states = {
             "epoch": epoch,
             "global_step": global_step,
-            "model_state_dict": self.model.state_dict(),
+            "model_state_dict": model_state_dict,
             "optimizer_state_dict": self.optimizer.state_dict(),
             "config": self.bart_config,
         }

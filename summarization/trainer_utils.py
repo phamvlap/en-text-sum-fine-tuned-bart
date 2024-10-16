@@ -30,3 +30,6 @@ class TrainingArguments:
     accumulate: Literal["best", "avg"] = "best"
     max_grad_norm: Optional[float] = None
     f16_precision: bool = True
+    use_ddp: bool = False
+    rank: Optional[int] = None
+    local_rank: Optional[int] = None
