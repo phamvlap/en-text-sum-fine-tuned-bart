@@ -1,5 +1,9 @@
-from summarization.preprocess import preprocess
+from summarization.preprocess import preprocess, get_data
 from summarization.utils.mix import load_config
+
+
+def run_getting_data(config: dict):
+    get_data(config)
 
 
 def main(config: dict):

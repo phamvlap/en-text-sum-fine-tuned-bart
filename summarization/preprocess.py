@@ -2,6 +2,7 @@ import pandas as pd
 
 from pathlib import Path
 from typing import Optional
+from datasets import load_dataset as load_dataset_remote, load_dataset_builder
 
 from bart.constants import DEFAULT_TRAIN_VAL_TEST_RATIO, SentenceContractions
 from .utils.tokenizer import load_tokenizer
@@ -17,9 +18,23 @@ from .utils.seed import set_seed
 
 
 def load_dataset(path: str) -> pd.DataFrame:
-    if not Path(path).exists():
-        raise FileNotFoundError(f"Dataset file {path} not found")
-    return pd.read_csv(path)
+    if path.endswith(".csv"):
+        if not Path(path).exists():
+            raise FileNotFoundError(f"Dataset file {path} not found")
+        return pd.read_csv(path)
+
+    ds_builder = load_dataset_builder(path)
+    splits = ds_builder.info.splits
+    if "train" not in splits:
+        raise ValueError("Dataset has no train split")
+
+    ds = load_dataset_remote(path)
+    df = pd.DataFrame()
+    for split in list(splits.keys()):
+        df = pd.concat([df, ds[split].to_pandas()], ignore_index=True)
+    df = df.reset_index(drop=True)
+
+    return df
 
 
 def train_val_test_split(
@@ -62,10 +77,9 @@ def train_val_test_split(
     return train_df, val_df, test_df
 
 
-def preprocess(config: dict) -> None:
-    set_seed(seed=config["seed"])
-    print("Preprocessing dataset...")
-
+def get_data(config: dict) -> None:
+    print("Getting data...")
+    # External data source
     raw_data_file_path = config["raw_data_file_path"]
     raw_df = load_dataset(path=raw_data_file_path)
     raw_df = raw_df.astype(str)
@@ -80,7 +94,22 @@ def preprocess(config: dict) -> None:
     )
 
     features = [config["text_src"], config["text_tgt"]]
-    df = retain_columns(df=raw_df, columns=features)
+    retained_df = retain_columns(df=raw_df, columns=features)
+
+    output_data_file_path = config["data_files_path"]["raw"]
+    make_dir(dir_path=config["dataset_dir"])
+    retained_df.to_csv(output_data_file_path, index=False)
+
+    print("Getting data done!")
+    print(f"Extracted data saved at {output_data_file_path}")
+
+
+def preprocess(config: dict) -> None:
+    set_seed(seed=config["seed"])
+    print("Preprocessing dataset...")
+
+    raw_data_file_path = config["data_files_path"]["raw"]
+    df = load_dataset(path=raw_data_file_path)
 
     tokenizer = None
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
@@ -91,6 +120,7 @@ def preprocess(config: dict) -> None:
     if config["contractions"]:
         conditions.append(SentenceContractions.CONTRACTIONS)
 
+    features = [config["text_src"], config["text_tgt"]]
     cleaned_df = clean_dataset(df=df, features=features, conditions=conditions)
 
     num_keep_tokens = 2

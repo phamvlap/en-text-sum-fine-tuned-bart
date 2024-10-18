@@ -9,6 +9,7 @@ model_basename: bart_model_
 # Dataset configs
 dataset_dir: dataset
 data_files_path:
+  raw: dataset/raw.csv
   train: dataset/train.csv
   val: dataset/val.csv
   test: dataset/test.csv
