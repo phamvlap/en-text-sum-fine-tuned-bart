@@ -5,6 +5,7 @@ seed: 42
 base_dir: trained
 model_dir: trained/models
 model_basename: bart_model_
+model_name_or_path: "facebook/bart-base"
 
 # Dataset configs
 dataset_dir: dataset

@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
-from bart.model import build_bart_model, FineTunedBartForGenerationConfig
+from bart.model import build_bart_model
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
 from .trainer import Trainer
@@ -50,9 +50,7 @@ def train(config: dict) -> None:
 
     print("Loading tokenizer...")
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
-    bos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
-    eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
 
     print("Loading dataloaders...")
     train_dataloader = get_dataloader(
@@ -89,33 +87,9 @@ def train(config: dict) -> None:
 
     if model_filename is None:
         print("Starting training model from scratch")
-
-        bart_model_config = FineTunedBartForGenerationConfig(
-            seq_length=config["seq_length"],
-            device=config["device"],
-            vocab_size=tokenizer.vocab_size,
-            d_model=config["d_model"],
-            encoder_layers=config["encoder_layers"],
-            decoder_layers=config["decoder_layers"],
-            encoder_attention_heads=config["encoder_attention_heads"],
-            decoder_attention_heads=config["decoder_attention_heads"],
-            encoder_ffn_dim=config["encoder_ffn_dim"],
-            decoder_ffn_dim=config["decoder_ffn_dim"],
-            activation_function=config["activation_function"],
-            dropout=config["dropout"],
-            attention_dropout=config["attention_dropout"],
-            activation_dropout=config["activation_dropout"],
-            classifier_dropout=config["classifier_dropout"],
-            init_std=config["init_std"],
-            encoder_layerdrop=config["encoder_layerdrop"],
-            decoder_layerdrop=config["decoder_layerdrop"],
-            scale_embedding=config["scale_embedding"],
-            num_beams=config["num_beams"],
-            bos_token_id=bos_token_id,
-            pad_token_id=pad_token_id,
-            eos_token_id=eos_token_id,
-        )
-        bart_model = build_bart_model(config=bart_model_config)
+        model_path = config["model_name_or_path"]
+        bart_model = build_bart_model(model_path)
+        bart_model_config = bart_model.get_config()
         bart_model.to(device=device)
     else:
         print("Loading model from {}".format(model_filename))
@@ -134,9 +108,10 @@ def train(config: dict) -> None:
                 raise ValueError(f"Missing key {key} in model state dict.")
 
         bart_model_config = checkpoint_states["config"]
-        bart_model = build_bart_model(config=bart_model_config)
-        bart_model.to(device=bart_model_config.device)
+        model_path = bart_model_config._name_or_path
+        bart_model = build_bart_model(model_path, config=bart_model_config)
         bart_model.load_state_dict(checkpoint_states["model_state_dict"])
+        bart_model.to(device=device)
 
         if "epoch" in checkpoint_states:
             initial_epoch = checkpoint_states["epoch"] + 1
@@ -217,7 +192,6 @@ def train(config: dict) -> None:
         tokenizer=tokenizer,
         criterion=loss_fn,
         args=training_args,
-        bart_config=bart_model_config,
         scaler_state_dict=scaler_state_dict,
         wb_logger=wb_logger,
     )

@@ -8,7 +8,7 @@ from transformers import BartTokenizer
 from tqdm import tqdm
 from typing import Optional
 
-from bart.model import FineTunedBartForGeneration, FineTunedBartForGenerationConfig
+from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken
 from .utils.statistics import Statistics
 from .utils.eval import evaluate
@@ -27,7 +27,6 @@ class Trainer:
         tokenizer: BartTokenizer,
         criterion: nn.CrossEntropyLoss,
         args: TrainingArguments,
-        bart_config: FineTunedBartForGenerationConfig,
         lr_scheduler: Optional[optim.lr_scheduler.LRScheduler] = None,
         scaler_state_dict: Optional[dict] = None,
         wb_logger: Optional[WandbLogger] = None,
@@ -39,7 +38,10 @@ class Trainer:
         self.tokenizer = tokenizer
         self.pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
         self.args = args
-        self.bart_config = bart_config
+        if isinstance(self.model, DDP):
+            self.bart_config = self.model.module.get_config()
+        else:
+            self.bart_config = self.model.get_config()
         self.train_stats = Statistics()
         self.wb_logger = wb_logger
 
