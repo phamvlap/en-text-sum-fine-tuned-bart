@@ -42,8 +42,11 @@ def test(config: dict) -> None:
 
     print("Building BART model...")
     bart_config = states["config"]
-    model = build_bart_model(config=bart_config).to(device=device)
-    model.load_state_dict(states["model_state_dict"])
+    model = build_bart_model(
+        config["model_name_or_path"],
+        config=bart_config,
+    ).to(device=device)
+    model.load_state_dict(states["model_state_dict"], weights_only=True)
 
     loss_fn = nn.CrossEntropyLoss(
         ignore_index=tokenizer.convert_tokens_to_ids(SpecialToken.PAD),

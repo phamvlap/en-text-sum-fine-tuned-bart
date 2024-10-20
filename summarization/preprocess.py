@@ -123,14 +123,16 @@ def preprocess(config: dict) -> None:
     features = [config["text_src"], config["text_tgt"]]
     cleaned_df = clean_dataset(df=df, features=features, conditions=conditions)
 
-    num_keep_tokens = 2
-    valid_df = remove_rows_by_invalid_seq_length(
-        df=cleaned_df,
-        tokenizer=tokenizer,
-        config=config,
-        max_seq_length=config["seq_length"] - num_keep_tokens,
-        min_seq_length=0,
-    )
+    valid_df = cleaned_df
+    if config["remove_invalid_length"]:
+        num_keeped_tokens = 2
+        valid_df = remove_rows_by_invalid_seq_length(
+            df=cleaned_df,
+            tokenizer=tokenizer,
+            config=config,
+            max_seq_length=config["seq_length"] - num_keeped_tokens,
+            min_seq_length=0,
+        )
 
     if config["is_sampling"]:
         if (

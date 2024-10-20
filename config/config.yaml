@@ -26,6 +26,7 @@ is_sampling: False
 num_samples: 1000
 lowercase: True
 contractions: True
+remove_invalid_length: True
 
 # Tokenizer configs
 tokenizer_train_ds_path: path/to/train/tokenizer/file.csv

@@ -185,7 +185,8 @@ class Trainer:
                 if global_step % self.args.save_every_n_steps == 0:
                     self._save_checkpoint(global_step=global_step, epoch=epoch)
 
-        self.wb_logger.finish()
+        if self.wb_logger is not None:
+            self.wb_logger.finish()
 
     def _update_metrics(
         self,

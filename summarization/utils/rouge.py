@@ -20,11 +20,11 @@ class RougeScorer:
         tokenizer_function: Optional[Callable] = None,
         accumulate: Literal["best", "avg"] = "best",
     ) -> None:
-        all_rouge_keys = (
+        all_rouge_keys = [
             RougeKey.ROUGE_1,
             RougeKey.ROUGE_2,
             RougeKey.ROUGE_L,
-        )
+        ]
         rouge_keys = rouge_keys if rouge_keys is not None else all_rouge_keys
 
         self.rouge_scorer = ROUGEScore(

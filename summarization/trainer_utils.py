@@ -21,11 +21,11 @@ class TrainingArguments:
     topk: int = 1
     log_examples: bool = True
     logging_steps: int = 100
-    rouge_keys: list[str] | tuple[str] = (
+    rouge_keys: list[str] | tuple[str] = [
         RougeKey.ROUGE_1,
         RougeKey.ROUGE_2,
         RougeKey.ROUGE_L,
-    )
+    ]
     use_stemmer: bool = True
     accumulate: Literal["best", "avg"] = "best"
     max_grad_norm: Optional[float] = None
