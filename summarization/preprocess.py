@@ -80,8 +80,8 @@ def train_val_test_split(
 def get_data(config: dict) -> None:
     print("Getting data...")
     # External data source
-    raw_data_file_path = config["raw_data_file_path"]
-    raw_df = load_dataset(path=raw_data_file_path)
+    datasource_path = config["datasource_path"]
+    raw_df = load_dataset(path=datasource_path)
     raw_df = raw_df.astype(str)
 
     raw_df[config["text_src"]] = raw_df.apply(

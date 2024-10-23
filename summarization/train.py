@@ -2,6 +2,7 @@ import os
 import torch
 import torch.nn as nn
 
+from datetime import datetime
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
@@ -57,14 +58,14 @@ def train(config: dict) -> None:
         tokenizer=tokenizer,
         split="train",
         batch_size=config["batch_size_train"],
-        shuffle=True,
+        shuffle=config["shuffle_dataloader"],
         config=config,
     )
     val_dataloader = get_dataloader(
         tokenizer=tokenizer,
         split="val",
         batch_size=config["batch_size_val"],
-        shuffle=True,
+        shuffle=config["shuffle_dataloader"],
         config=config,
     )
 
@@ -105,7 +106,7 @@ def train(config: dict) -> None:
             required_keys.append("lr_scheduler_state_dict")
         for key in required_keys:
             if key not in checkpoint_states.keys():
-                raise ValueError(f"Missing key {key} in model state dict.")
+                raise ValueError(f"Missing key {key} in checkpoint states.")
 
         bart_model_config = checkpoint_states["config"]
         model_path = bart_model_config._name_or_path
@@ -173,17 +174,21 @@ def train(config: dict) -> None:
         local_rank=config["local_rank"] if config["use_ddp"] else None,
     )
 
-    saved_config = {
-        "model_config": bart_model_config.__dict__,
-        "training_args": training_args.__dict__,
-    }
+    wb_logger = None
+    if config["is_logging_wandb"]:
+        saved_config = {
+            "model_config": bart_model_config.__dict__,
+            "training_args": training_args.__dict__,
+        }
+        display_name = f"running_{str(datetime.today().strftime('%H-%M-%S_%m-%d-%Y'))}"
 
-    wb_logger = WandbLogger(
-        project_name=config["wandb_project_name"],
-        config=saved_config,
-        key=config["wandb_key"],
-        log_dir=config["wandb_log_dir"],
-    )
+        wb_logger = WandbLogger(
+            project_name=config["wandb_project_name"],
+            config=saved_config,
+            key=config["wandb_key"],
+            log_dir=config["wandb_log_dir"],
+            name=display_name,
+        )
 
     trainer = Trainer(
         model=bart_model,

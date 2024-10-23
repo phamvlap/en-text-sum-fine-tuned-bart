@@ -99,6 +99,9 @@ def get_summarization_dataset(
     text_tgt: str,
     seq_length: int,
 ) -> SummarizationDataset:
+    if split not in ["train", "val", "test"]:
+        raise ValueError(f"split must be one of ['train', 'val', 'test'], got {split}")
+
     dataset = load_dataset(path=data_files_path[split])
 
     return SummarizationDataset(
@@ -149,6 +152,9 @@ def get_dataloader(
     shuffle: bool,
     config: dict,
 ) -> DataLoader:
+    if split not in ["train", "val", "test"]:
+        raise ValueError(f"split must be one of ['train', 'val', 'test'], got {split}")
+
     dataset = get_summarization_dataset(
         data_files_path=config["data_files_path"],
         split=split,
