@@ -1,9 +1,9 @@
-from summarization.preprocess import preprocess, get_data
+from summarization.preprocess import preprocess, split_dataset
 from summarization.utils.mix import load_config
 
 
-def run_getting_data(config: dict):
-    get_data(config)
+def run_splitting_dataset(config: dict) -> None:
+    split_dataset(config)
 
 
 def main(config: dict):

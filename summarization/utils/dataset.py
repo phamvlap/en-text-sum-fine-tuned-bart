@@ -1,10 +1,31 @@
 import re
 import contractions
 import pandas as pd
+import numpy as np
 
 from transformers import BartTokenizer
 
 from bart.constants import SentenceContractions
+
+
+def clean_source_feature(text: str) -> str:
+    cleaned_text = re.sub(r"\n", "", text)
+    cleaned_text = re.sub(r"[\.;],", ".", cleaned_text)
+    cleaned_text = re.sub(r",{2,}", ",", cleaned_text)
+    cleaned_text = re.sub(r"\.{2,}", ".", cleaned_text)
+    cleaned_text = re.sub(r"^[^\w]+|[^\w]+$", "", cleaned_text)
+    cleaned_text = cleaned_text + "."
+
+    return cleaned_text
+
+
+def clean_target_feature(summary: str) -> str:
+    cleaned_summary = re.sub(r"\n", "", summary)
+    cleaned_summary = re.sub(r"\.,", ". ", cleaned_summary)
+    cleaned_summary = re.sub(r"^[^\w]+|[^\w]+$", "", cleaned_summary)
+    cleaned_summary = cleaned_summary + "."
+
+    return cleaned_summary
 
 
 def remove_urls(text: str) -> str:
@@ -15,60 +36,57 @@ def remove_html_tags(text: str) -> str:
     return re.sub(r"<.*?>", "", text)
 
 
-def handle_punctuation(text: str) -> str:
-    text = re.sub(r"\n", " ", text)
-    text = re.sub(r"([,.;?!\(\)\[\]\{\}])", r" \1 ", text)
+def process_punctuations(text: str) -> str:
+    text = re.sub(r"([^\w\s\.,-])", "", text)
+    text = re.sub(r"([\.,-])", r" \1 ", text)
     text = re.sub(r"\s{2,}", " ", text)
+
     return text.strip()
 
 
-def handle_en_text(text: str, conditions: list[str] = []) -> str:
+def process_en_text(text: str, conditions: list[str] = []) -> str:
     if SentenceContractions.LOWERCASE in conditions:
         text = str(text).lower()
     if SentenceContractions.CONTRACTIONS in conditions:
         text = contractions.fix(text)
-
     text = remove_urls(text)
     text = remove_html_tags(text)
-    text = handle_punctuation(text)
+    text = process_punctuations(text)
 
     return text
 
 
-def handle_feature(
-    df: pd.DataFrame,
-    feature: str,
-    conditions: list[str] = [],
-) -> pd.DataFrame:
-    if feature not in df.columns:
-        raise ValueError(f"{feature} not found in dataset.")
-    df[feature] = df[[feature]].map(lambda s: handle_en_text(s, conditions))
-    return df
+def replace_in_series(
+    series: pd.Series,
+    to_replace: str | int | float,
+    value: str | int | float,
+) -> pd.Series:
+    return series.replace(to_replace=to_replace, value=value)
 
 
-def handle_dataset_features(
+def process_features(
     df: pd.DataFrame,
     features: list[str],
     conditions: list[str] = [],
 ) -> pd.DataFrame:
+    processed_df = df.copy()
+
     for feature in features:
         if feature not in df.columns:
             raise ValueError(f"{feature} not found in dataset.")
 
     for feature in features:
-        df = handle_feature(df=df, feature=feature, conditions=conditions)
+        processed_df.loc[:, feature] = processed_df[feature].map(
+            lambda text: process_en_text(text=text, conditions=conditions)
+        )
+        processed_df[feature] = replace_in_series(
+            series=processed_df[feature],
+            to_replace="",
+            value=np.nan,
+        )
+    processed_df = processed_df.dropna().drop_duplicates().reset_index(drop=True)
 
-    return df
-
-
-def clean_dataset(
-    df: pd.DataFrame,
-    features: list[str],
-    conditions: list[str] = [],
-) -> pd.DataFrame:
-    df = df.dropna().drop_duplicates().reset_index(drop=True)
-    df = handle_dataset_features(df=df, features=features, conditions=conditions)
-    return df
+    return processed_df
 
 
 def remove_rows_by_invalid_seq_length(
@@ -118,20 +136,3 @@ def retain_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
             dropped_columns.append(column)
     df = df.drop(columns=dropped_columns).reset_index(drop=True)
     return df
-
-
-def preprocess_abstract_feature(abstract: str) -> str:
-    abstract = re.sub(r"[\n]", " ", abstract)
-    abstract = re.sub(r"\.,", ". ", abstract)
-
-    return abstract
-
-
-def preprocess_article_feature(article: str) -> str:
-    article = re.sub(r"[\n]+", "\n", article)
-    article = re.sub(r"[\.;]\n,", ". ", article)
-    article = re.sub(r"[\n]", " ", article)
-    article = re.sub(r"[\.]+", ".", article)
-    article = re.sub(r"\.,", ".", article)
-
-    return article

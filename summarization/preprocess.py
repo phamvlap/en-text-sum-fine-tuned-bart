@@ -7,11 +7,11 @@ from datasets import load_dataset as load_dataset_remote, load_dataset_builder
 from bart.constants import DEFAULT_TRAIN_VAL_TEST_RATIO, SentenceContractions
 from .utils.tokenizer import load_tokenizer
 from .utils.dataset import (
-    clean_dataset,
     remove_rows_by_invalid_seq_length,
     retain_columns,
-    preprocess_abstract_feature,
-    preprocess_article_feature,
+    clean_source_feature,
+    clean_target_feature,
+    process_features,
 )
 from .utils.path import make_dir
 from .utils.seed import set_seed
@@ -77,42 +77,31 @@ def train_val_test_split(
     return train_df, val_df, test_df
 
 
-def get_data(config: dict) -> None:
-    print("Getting data...")
+def preprocess(config: dict) -> None:
+    print("Preprocessing data...")
     # External data source
     datasource_path = config["datasource_path"]
     raw_df = load_dataset(path=datasource_path)
     raw_df = raw_df.astype(str)
 
-    raw_df[config["text_src"]] = raw_df.apply(
-        lambda row: preprocess_article_feature(row[config["original_text_src"]]),
-        axis=1,
+    raw_df = raw_df.dropna().reset_index(drop=True)
+    cleaned_df = raw_df.copy()
+
+    src_field, tgt_field = config["text_src"], config["text_tgt"]
+    original_src_field, original_tgt_field = (
+        config["original_text_src"],
+        config["original_text_tgt"],
     )
-    raw_df[config["text_tgt"]] = raw_df.apply(
-        lambda row: preprocess_abstract_feature(row[config["original_text_tgt"]]),
-        axis=1,
+
+    cleaned_df.loc[:, src_field] = raw_df[original_src_field].map(
+        lambda text: clean_source_feature(text)
+    )
+    cleaned_df.loc[:, tgt_field] = raw_df[original_tgt_field].map(
+        lambda summary: clean_target_feature(summary)
     )
 
-    features = [config["text_src"], config["text_tgt"]]
-    retained_df = retain_columns(df=raw_df, columns=features)
-
-    output_data_file_path = config["data_files_path"]["raw"]
-    make_dir(dir_path=config["dataset_dir"])
-    retained_df.to_csv(output_data_file_path, index=False)
-
-    print("Getting data done!")
-    print(f"Extracted data saved at {output_data_file_path}")
-
-
-def preprocess(config: dict) -> None:
-    set_seed(seed=config["seed"])
-    print("Preprocessing dataset...")
-
-    raw_data_file_path = config["data_files_path"]["raw"]
-    df = load_dataset(path=raw_data_file_path)
-
-    tokenizer = None
-    tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
+    features = [src_field, tgt_field]
+    retained_df = retain_columns(df=cleaned_df, columns=features)
 
     conditions = []
     if config["lowercase"]:
@@ -120,14 +109,35 @@ def preprocess(config: dict) -> None:
     if config["contractions"]:
         conditions.append(SentenceContractions.CONTRACTIONS)
 
-    features = [config["text_src"], config["text_tgt"]]
-    cleaned_df = clean_dataset(df=df, features=features, conditions=conditions)
+    df = process_features(
+        df=retained_df,
+        features=features,
+        conditions=conditions,
+    )
 
-    valid_df = cleaned_df
+    output_data_file_path = config["data_files_path"]["raw"]
+    make_dir(dir_path=config["dataset_dir"])
+    df.to_csv(output_data_file_path, index=False)
+
+    print("Preprocessing dataset done!")
+    print(f"Extracted data saved at {output_data_file_path}")
+
+
+def split_dataset(config: dict) -> None:
+    print("Splitting dataset...")
+    set_seed(seed=config["seed"])
+
+    raw_data_file_path = config["data_files_path"]["raw"]
+    df = load_dataset(path=raw_data_file_path)
+
+    tokenizer = None
+    tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
+
+    valid_df = df
     if config["remove_invalid_length"]:
         num_keeped_tokens = 2
         valid_df = remove_rows_by_invalid_seq_length(
-            df=cleaned_df,
+            df=df,
             tokenizer=tokenizer,
             config=config,
             max_seq_length=config["seq_length"] - num_keeped_tokens,
@@ -157,7 +167,7 @@ def preprocess(config: dict) -> None:
     val_df.to_csv(data_files_path["val"], index=False)
     test_df.to_csv(data_files_path["test"], index=False)
 
-    print("Preprocessing dataset done!")
+    print("Splitting dataset done!")
     print(f"Datasets saved at directory: {config['dataset_dir']}")
     print(f"Length of dataset: {len(valid_df)}")
     print(f"Length of train dataset: {len(train_df)}")
