@@ -3,7 +3,6 @@ from transformers import BartTokenizer
 
 from .preprocess import load_dataset
 from .utils.tokenizer import CustomBartTokenizer, save_tokenizer
-from .utils.dataset import clean_dataset
 
 
 def train_tokenizer(config: dict) -> BartTokenizer:
@@ -17,7 +16,6 @@ def train_tokenizer(config: dict) -> BartTokenizer:
         ds_train = ds[src_feature]
 
     ds_train = pd.DataFrame(ds_train, columns=[src_feature])
-    ds_train = clean_dataset(df=ds_train, features=[src_feature])
 
     bart_tokenizer = CustomBartTokenizer(
         dataset=ds_train[src_feature],

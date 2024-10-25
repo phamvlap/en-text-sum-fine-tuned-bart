@@ -56,37 +56,58 @@ def process_en_text(text: str, conditions: list[str] = []) -> str:
     return text
 
 
-def replace_in_series(
-    series: pd.Series,
-    to_replace: str | int | float,
-    value: str | int | float,
-) -> pd.Series:
-    return series.replace(to_replace=to_replace, value=value)
-
-
 def process_features(
     df: pd.DataFrame,
     features: list[str],
     conditions: list[str] = [],
 ) -> pd.DataFrame:
-    processed_df = df.copy()
-
     for feature in features:
         if feature not in df.columns:
             raise ValueError(f"{feature} not found in dataset.")
+
+    processed_df = df.copy()
 
     for feature in features:
         processed_df.loc[:, feature] = processed_df[feature].map(
             lambda text: process_en_text(text=text, conditions=conditions)
         )
-        processed_df[feature] = replace_in_series(
-            series=processed_df[feature],
-            to_replace="",
-            value=np.nan,
-        )
-    processed_df = processed_df.dropna().drop_duplicates().reset_index(drop=True)
+        processed_df[feature] = processed_df[feature].replace("", np.nan)
 
-    return processed_df
+    df = processed_df.dropna().drop_duplicates().reset_index(drop=True)
+
+    return df
+
+
+def _is_valid_text(text: str, special_chars: list[str]) -> bool:
+    i = 0
+    while i < len(text):
+        if text[i] not in special_chars:
+            return True
+        i += 1
+    return False
+
+
+def remove_all_invalid_text(
+    df: pd.DataFrame,
+    features: list[str],
+    special_chars: list[str],
+) -> pd.DataFrame:
+    for feature in features:
+        if feature not in df.columns:
+            raise ValueError(f"{feature} not found in dataset.")
+
+    df_size = len(df)
+    is_valid_rows = [True] * df_size
+
+    for i in range(df_size):
+        row = df.iloc[i]
+        is_valid_rows[i] = all(
+            [
+                _is_valid_text(text=row[feature], special_chars=special_chars)
+                for feature in features
+            ]
+        )
+    return df[is_valid_rows].reset_index(drop=True)
 
 
 def remove_rows_by_invalid_seq_length(
@@ -126,7 +147,7 @@ def remove_rows_by_invalid_seq_length(
             and max(source_token_length, target_token_length) <= max_seq_length
         )
 
-    return df[is_valid_rows]
+    return df[is_valid_rows].reset_index(drop=True)
 
 
 def retain_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:

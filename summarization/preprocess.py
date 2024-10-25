@@ -7,11 +7,12 @@ from datasets import load_dataset as load_dataset_remote, load_dataset_builder
 from bart.constants import DEFAULT_TRAIN_VAL_TEST_RATIO, SentenceContractions
 from .utils.tokenizer import load_tokenizer
 from .utils.dataset import (
-    remove_rows_by_invalid_seq_length,
-    retain_columns,
     clean_source_feature,
     clean_target_feature,
+    retain_columns,
     process_features,
+    remove_all_invalid_text,
+    remove_rows_by_invalid_seq_length,
 )
 from .utils.path import make_dir
 from .utils.seed import set_seed
@@ -81,11 +82,9 @@ def preprocess(config: dict) -> None:
     print("Preprocessing data...")
     # External data source
     datasource_path = config["datasource_path"]
-    raw_df = load_dataset(path=datasource_path)
-    raw_df = raw_df.astype(str)
 
-    raw_df = raw_df.dropna().reset_index(drop=True)
-    cleaned_df = raw_df.copy()
+    raw_df = load_dataset(path=datasource_path)
+    cleaned_df = raw_df.dropna().reset_index(drop=True)
 
     src_field, tgt_field = config["text_src"], config["text_tgt"]
     original_src_field, original_tgt_field = (
@@ -93,10 +92,10 @@ def preprocess(config: dict) -> None:
         config["original_text_tgt"],
     )
 
-    cleaned_df.loc[:, src_field] = raw_df[original_src_field].map(
+    cleaned_df.loc[:, src_field] = cleaned_df[original_src_field].map(
         lambda text: clean_source_feature(text)
     )
-    cleaned_df.loc[:, tgt_field] = raw_df[original_tgt_field].map(
+    cleaned_df.loc[:, tgt_field] = cleaned_df[original_tgt_field].map(
         lambda summary: clean_target_feature(summary)
     )
 
@@ -120,6 +119,7 @@ def preprocess(config: dict) -> None:
     df.to_csv(output_data_file_path, index=False)
 
     print("Preprocessing dataset done!")
+    print(f"Shape of dataset: {df.shape}")
     print(f"Extracted data saved at {output_data_file_path}")
 
 
@@ -133,11 +133,20 @@ def split_dataset(config: dict) -> None:
     tokenizer = None
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
 
-    valid_df = df
+    valid_df = df.copy()
+
+    if config["remove_invalid_text"]:
+        features = [config["text_src"], config["text_tgt"]]
+        valid_df = remove_all_invalid_text(
+            df=valid_df,
+            features=features,
+            special_chars=[".", ",", "-"],
+        )
+
     if config["remove_invalid_length"]:
         num_keeped_tokens = 2
         valid_df = remove_rows_by_invalid_seq_length(
-            df=df,
+            df=valid_df,
             tokenizer=tokenizer,
             config=config,
             max_seq_length=config["seq_length"] - num_keeped_tokens,
