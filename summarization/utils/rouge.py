@@ -3,7 +3,7 @@ import torch
 from torch import Tensor
 from torchmetrics.text.rouge import ROUGEScore
 from transformers import BartTokenizer
-from typing import Literal, Callable, Optional
+from typing import Literal, Callable, Optional, List, Tuple
 
 from bart.model import FineTunedBartForGeneration
 from ..summarization_dataset import SummarizationDataset
@@ -14,7 +14,7 @@ from .eval import greedy_search_decode, beam_search_decode
 class RougeScorer:
     def __init__(
         self,
-        rouge_keys: Optional[list[str] | tuple[str]] = None,
+        rouge_keys: Optional[List[str] | Tuple[str]] = None,
         use_stemmer: bool = True,
         normalizer_function: Optional[Callable] = None,
         tokenizer_function: Optional[Callable] = None,

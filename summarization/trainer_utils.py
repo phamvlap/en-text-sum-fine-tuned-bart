@@ -1,7 +1,7 @@
 import torch
 
-from dataclasses import dataclass
-from typing import Literal, Optional
+from dataclasses import dataclass, field
+from typing import Literal, Optional, List, Tuple
 
 from bart.constants import RougeKey
 
@@ -21,11 +21,13 @@ class TrainingArguments:
     topk: int = 1
     log_examples: bool = True
     logging_steps: int = 100
-    rouge_keys: list[str] | tuple[str] = [
-        RougeKey.ROUGE_1,
-        RougeKey.ROUGE_2,
-        RougeKey.ROUGE_L,
-    ]
+    rouge_keys: List[str] | Tuple[str] = field(
+        default_factory=lambda: [
+            RougeKey.ROUGE_1,
+            RougeKey.ROUGE_2,
+            RougeKey.ROUGE_L,
+        ]
+    )
     use_stemmer: bool = True
     accumulate: Literal["best", "avg"] = "best"
     max_grad_norm: Optional[float] = None
