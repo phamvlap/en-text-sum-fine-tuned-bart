@@ -3,8 +3,10 @@ import torch.nn as nn
 
 from torch import Tensor
 from torch.nn import functional as Func
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from transformers import BartTokenizer
+from typing import Optional
 
 from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken
@@ -19,11 +21,7 @@ def create_encoder_mask(encoder_input: Tensor, pad_token_id: int) -> Tensor:
     Returns:
         Tensor: masked tensor, shape `(1, seq_length)`
     """
-    return (
-        (encoder_input != pad_token_id)
-        .type_as(encoder_input)
-        .to(device=encoder_input.device)
-    )
+    return (encoder_input != pad_token_id).type_as(encoder_input)
 
 
 def create_decoder_mask(decoder_input: Tensor, pad_token_id: int) -> Tensor:
@@ -34,19 +32,14 @@ def create_decoder_mask(decoder_input: Tensor, pad_token_id: int) -> Tensor:
     Returns:
         Tensor: masked tensor, shape `(1, seq_length)`
     """
-    return (
-        (decoder_input != pad_token_id)
-        .type_as(decoder_input)
-        .to(device=decoder_input.device)
-    )
+    return (decoder_input != pad_token_id).type_as(decoder_input)
 
 
 def greedy_search_decode(
-    model: FineTunedBartForGeneration,
+    model: FineTunedBartForGeneration | DDP,
     input_ids: Tensor,
     tokenizer: BartTokenizer,
     seq_length: int,
-    device: torch.device,
 ) -> Tensor:
     """
     Args:
@@ -54,7 +47,6 @@ def greedy_search_decode(
         input_ids: input tensor, shape `(seq_length,)`
         tokenizer: tokenizer of BartTokenizer
         seq_length: maximum sequence length
-        device: torch.device
     Returns:
         Tensor: output tensor, shape `(seq_length,)`
     """
@@ -63,7 +55,10 @@ def greedy_search_decode(
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
     # input_ids (1, seq_length)
-    input_ids = input_ids.unsqueeze(dim=0).to(device=device)
+    input_ids = input_ids.unsqueeze(dim=0)
+
+    # Get primitive model
+    model = model.module if isinstance(model, DDP) else model
 
     # encoder_attention_mask (1, seq_length)
     encoder_attention_mask = create_encoder_mask(
@@ -77,9 +72,7 @@ def greedy_search_decode(
     )
 
     # decoder_input (1, 1)
-    decoder_input = (
-        torch.empty(1, 1).fill_(value=bos_token_id).type_as(input_ids).to(device=device)
-    )
+    decoder_input = torch.empty(1, 1).fill_(value=bos_token_id).type_as(input_ids)
 
     for _ in range(seq_length):
         decoder_attention_mask = create_decoder_mask(
@@ -102,10 +95,7 @@ def greedy_search_decode(
         decoder_input = torch.cat(
             [
                 decoder_input,
-                torch.empty(1, 1)
-                .fill_(value=next_token.item())
-                .type_as(input_ids)
-                .to(device=device),
+                torch.empty(1, 1).fill_(value=next_token.item()).type_as(input_ids),
             ],
             dim=1,
         )
@@ -123,12 +113,11 @@ def length_penalty(length: int, alpha: float = 0.6) -> float:
 
 
 def beam_search_decode(
-    model: FineTunedBartForGeneration,
+    model: FineTunedBartForGeneration | DDP,
     beam_size: int,
     input_ids: Tensor,
     tokenizer: BartTokenizer,
     seq_length: int,
-    device: torch.device,
     topk: int = 1,
 ) -> list[Tensor]:
     """
@@ -138,7 +127,6 @@ def beam_search_decode(
         input_ids: input tensor, shape `(seq_length,)`
         tokenizer: tokenizer of BartTokenizer
         seq_length: maximum sequence length
-        device: torch.device
         topk: top k best candidates returned (default: 1)
     Returns:
         list[Tensor]: list of output tensors, each tensor with shape `(seq_length,)`
@@ -148,7 +136,10 @@ def beam_search_decode(
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
     # input_ids (1, seq_length)
-    input_ids = input_ids.unsqueeze(dim=0).to(device=device)
+    input_ids = input_ids.unsqueeze(dim=0)
+
+    # Get primitive model
+    model = model.module if isinstance(model, DDP) else model
 
     # encoder_attention_mask (1, seq_length)
     encoder_attention_mask = create_encoder_mask(
@@ -162,9 +153,7 @@ def beam_search_decode(
     )
 
     # Initialize decoder input with only <s> token (1, 1)
-    decoder_input = (
-        torch.empty(1, 1).fill_(value=bos_token_id).type_as(input_ids).to(device=device)
-    )
+    decoder_input = torch.empty(1, 1).fill_(value=bos_token_id).type_as(input_ids)
 
     # Candidate list ccontaints tuples of (cand, log_score)
     candidates = [(decoder_input, 0.0)]
@@ -234,14 +223,24 @@ def beam_search_decode(
 
 @torch.no_grad()
 def evaluate(
-    model: FineTunedBartForGeneration,
+    model: FineTunedBartForGeneration | DDP,
     val_dataloader: DataLoader,
     tokenizer: BartTokenizer,
     criterion: nn.CrossEntropyLoss,
     device: torch.device,
+    use_ddp: bool = False,
+    local_rank: Optional[int] = None,
 ) -> MetricTracker:
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
-    model.to(device=device)
+
+    assert (
+        local_rank is not None if use_ddp else True
+    ), "local_rank must be not None if use DDP"
+
+    if use_ddp:
+        model.to(local_rank)
+    else:
+        model.to(device=device)
 
     # Set model to evaluation mode
     model.eval()
@@ -251,9 +250,14 @@ def evaluate(
         # encoder_input (batch_size, seq_length)
         # decoder_input (batch_size, seq_length)
         # labels (batch_size, seq_length)
-        encoder_input = batch["encoder_input"].to(device=device)
-        decoder_input = batch["decoder_input"].to(device=device)
-        labels = batch["labels"].to(device=device)
+        if use_ddp:
+            encoder_input = batch["encoder_input"].to(local_rank)
+            decoder_input = batch["decoder_input"].to(local_rank)
+            labels = batch["labels"].to(local_rank)
+        else:
+            encoder_input = batch["encoder_input"].to(device=device)
+            decoder_input = batch["decoder_input"].to(device=device)
+            labels = batch["labels"].to(device=device)
 
         encoder_attention_mask = create_encoder_mask(
             encoder_input=encoder_input,

@@ -64,6 +64,9 @@ class Trainer:
             # Empty cache
             torch.cuda.empty_cache()
 
+            # Ensure shuffling work properly across multiple epochs
+            train_dataloader.sampler.set_epoch(epoch)
+
             if self.args.use_ddp:
                 batch_iterator = tqdm(
                     train_dataloader,
@@ -80,18 +83,21 @@ class Trainer:
                 # encoder_input (batch_size, seq_length)
                 # decoder_input(batch_size, seq_length)
                 # labels (batch_size, seq_length)
-                encoder_input = batch["encoder_input"].to(device=self.args.device)
-                decoder_input = batch["decoder_input"].to(device=self.args.device)
-                labels = batch["labels"].to(device=self.args.device)
+                if self.args.use_ddp:
+                    encoder_input = batch["encoder_input"].to(self.args.local_rank)
+                    decoder_input = batch["decoder_input"].to(self.args.local_rank)
+                    labels = batch["labels"].to(self.args.local_rank)
+                else:
+                    encoder_input = batch["encoder_input"].to(self.args.device)
+                    decoder_input = batch["decoder_input"].to(self.args.device)
+                    labels = batch["labels"].to(self.args.device)
 
                 self.optimizer.zero_grad(set_to_none=True)
 
                 src_attention_mask = (encoder_input != self.pad_token_id).to(
-                    device=self.args.device,
                     dtype=torch.int64,
                 )
                 tgt_attention_mask = (decoder_input != self.pad_token_id).to(
-                    device=self.args.device,
                     dtype=torch.int64,
                 )
 
@@ -159,9 +165,11 @@ class Trainer:
                         tokenizer=self.tokenizer,
                         criterion=self.criterion,
                         device=self.args.device,
+                        use_ddp=self.args.use_ddp,
+                        local_rank=self.args.local_rank,
                     )
                     scores = compute_rouge_bert_score(
-                        model=self.model.module if self.args.use_ddp else self.model,
+                        model=self.model,
                         dataset=val_dataloader.dataset,
                         tokenizer=self.tokenizer,
                         seq_length=self.args.seq_length,
@@ -175,6 +183,8 @@ class Trainer:
                         rouge_keys=self.args.rouge_keys,
                         use_stemmer=self.args.use_stemmer,
                         accumulate=self.args.accumulate,
+                        use_ddp=self.args.use_ddp,
+                        local_rank=self.args.local_rank,
                     )
 
                     self._log_to_hub(
@@ -184,7 +194,10 @@ class Trainer:
                     )
 
                 # Save model
-                if global_step % self.args.save_every_n_steps == 0:
+                if (
+                    self.args.local_rank == 0
+                    and global_step % self.args.save_every_n_steps == 0
+                ):
                     self._save_checkpoint(global_step=global_step, epoch=epoch)
 
         if self.wb_logger is not None:

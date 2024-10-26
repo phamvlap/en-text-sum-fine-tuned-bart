@@ -1,6 +1,7 @@
 import torch
 
 from torch import Tensor
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torchmetrics.text.rouge import ROUGEScore
 from torchmetrics.text.bert import BERTScore
 from transformers import BartTokenizer
@@ -100,7 +101,7 @@ def format_bert_score(pure_bert_score: dict[str, Tensor]) -> dict[str, float]:
 
 @torch.no_grad()
 def compute_rouge_bert_score(
-    model: FineTunedBartForGeneration,
+    model: FineTunedBartForGeneration | DDP,
     dataset: SummarizationDataset,
     tokenizer: BartTokenizer,
     seq_length: int,
@@ -115,12 +116,18 @@ def compute_rouge_bert_score(
     rouge_keys: Optional[List[str] | Tuple[str]] = None,
     normalizer_function: Optional[Callable] = None,
     accumulate: Literal["best", "avg"] = "avg",
+    use_ddp: bool = False,
+    local_rank: Optional[int] = None,
 ) -> dict[str, float]:
     pred_text_list = []
     target_text_list = []
 
     # Set model to evaluation mode
     model.eval()
+
+    assert (
+        local_rank is not None if use_ddp else True
+    ), "local_rank must be not None if use DDP"
 
     rouge_scorer = RougeScorer(
         rouge_keys=rouge_keys,
@@ -138,8 +145,12 @@ def compute_rouge_bert_score(
         )
 
     for idx, data in enumerate(dataset):
-        encoder_input = data["encoder_input"]
-        labels = data["labels"]
+        if use_ddp:
+            encoder_input = data["encoder_input"].to(local_rank)
+            labels = data["labels"].to(local_rank)
+        else:
+            encoder_input = data["encoder_input"].to(device)
+            labels = data["labels"].to(device)
 
         if beam_size is not None and beam_size > 1:
             cands = beam_search_decode(
@@ -148,7 +159,6 @@ def compute_rouge_bert_score(
                 input_ids=encoder_input,
                 tokenizer=tokenizer,
                 seq_length=seq_length,
-                device=device,
                 topk=topk,
             )
             pred_tokens = cands[0]
@@ -158,7 +168,6 @@ def compute_rouge_bert_score(
                 input_ids=encoder_input,
                 tokenizer=tokenizer,
                 seq_length=seq_length,
-                device=device,
             )
 
         src_tokens = encoder_input.detach().cpu().numpy()

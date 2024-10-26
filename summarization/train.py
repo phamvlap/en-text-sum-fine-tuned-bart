@@ -30,7 +30,7 @@ def ddp_setup(config: dict) -> None:
         # Initialize the process group
         torch.cuda.set_device(config["local_rank"])
         # Use NCCL backend for communication between processes
-        init_process_group(backend="nccl")
+        init_process_group(backend="nccl", init_method="env://")
 
 
 def train(config: dict) -> None:

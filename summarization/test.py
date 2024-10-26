@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from bart.model import build_bart_model
+from bart.model import build_bart_model, FineTunedBartForGeneration
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
 from .utils.seed import set_seed
@@ -42,7 +42,7 @@ def test(config: dict) -> None:
 
     print("Building BART model...")
     bart_config = states["config"]
-    model = build_bart_model(
+    model: FineTunedBartForGeneration = build_bart_model(
         config["model_name_or_path"],
         config=bart_config,
     ).to(device=device)
@@ -54,14 +54,15 @@ def test(config: dict) -> None:
     ).to(device=device)
 
     print("Evaluating model...")
-    test_stats = evaluate(
+    test_metric_tracker = evaluate(
         model=model,
         val_dataloader=test_dataloader,
         tokenizer=tokenizer,
         criterion=loss_fn,
         device=device,
+        use_ddp=False,
     )
-    test_rouge_scores = compute_rouge_bert_score(
+    scores = compute_rouge_bert_score(
         model=model,
         dataset=test_dataloader.dataset,
         tokenizer=tokenizer,
@@ -76,13 +77,14 @@ def test(config: dict) -> None:
         use_stemmer=config["use_stemmer"],
         rouge_keys=config["rouge_keys"],
         accumulate=config["accumulate"],
+        use_ddp=False,
     )
 
-    metric_scores = test_stats.compute()
+    metric_scores = test_metric_tracker.compute()
 
-    columns = list(metric_scores.keys()) + list(test_rouge_scores.keys())
+    columns = list(metric_scores.keys()) + list(scores.keys())
     data = [[value] for value in metric_scores.values()] + [
-        [value] for value in test_rouge_scores.values()
+        [value] for value in scores.values()
     ]
 
     df = write_to_csv(
