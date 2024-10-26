@@ -1,9 +1,5 @@
-class Statistics:
-    def __init__(
-        self,
-        num_batchs: int = 0,
-        loss: float = 0.0,
-    ) -> None:
+class MetricTracker:
+    def __init__(self, num_batchs: int = 0, loss: float = 0.0) -> None:
         self.num_batchs = num_batchs
         self.loss = loss
 

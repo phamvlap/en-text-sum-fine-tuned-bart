@@ -10,13 +10,13 @@ from typing import Optional
 
 from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken
-from .utils.statistics import Statistics
 from .utils.eval import evaluate
 from .utils.rouge import compute_dataset_rouge
 from .utils.path import get_weights_file_path
 from .utils.mix import is_torch_cuda_available
 from .utils.wb_logger import WandbLogger
 from .trainer_utils import TrainingArguments
+from .utils.metric_tracker import MetricTracker
 
 
 class Trainer:
@@ -42,7 +42,7 @@ class Trainer:
             self.bart_config = self.model.module.get_config()
         else:
             self.bart_config = self.model.get_config()
-        self.train_stats = Statistics()
+        self.metric_tracker = MetricTracker()
         self.wb_logger = wb_logger
 
         # Automatic Mixed Precision
@@ -144,7 +144,7 @@ class Trainer:
                             )
                     self.lr_scheduler.step()
 
-                self.train_stats.update(loss=loss.item())
+                self.metric_tracker.update(loss=loss.item())
 
                 batch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
                 global_step += 1
@@ -153,7 +153,7 @@ class Trainer:
                     self.wb_logger.log({"loss": loss.item()})
 
                 if global_step % self.args.eval_every_n_steps == 0:
-                    eval_stats = evaluate(
+                    eval_metric_tracker = evaluate(
                         model=self.model,
                         val_dataloader=val_dataloader,
                         tokenizer=self.tokenizer,
@@ -175,9 +175,9 @@ class Trainer:
                         accumulate=self.args.accumulate,
                     )
 
-                    self._update_metrics(
+                    self._log_to_hub(
                         step=global_step,
-                        eval_stats=eval_stats,
+                        eval_metric_tracker=eval_metric_tracker,
                         rouge_score=rouge_score,
                     )
 
@@ -188,24 +188,29 @@ class Trainer:
         if self.wb_logger is not None:
             self.wb_logger.finish()
 
-    def _update_metrics(
+    def _log_to_hub(
         self,
         step: int,
-        eval_stats: Statistics,
+        eval_metric_tracker: MetricTracker,
         rouge_score: dict[str, float],
     ) -> None:
-        train_stats_result = self.train_stats.compute()
-        if self.wb_logger is not None:
-            for key, value in train_stats_result.items():
-                self.wb_logger.log({f"{key}": value}, step=step)
-            eval_stats_result = eval_stats.compute()
-            for key, value in eval_stats_result.items():
-                self.wb_logger.log({f"eval_{key}": value}, step=step)
-            for key, value in rouge_score.items():
-                self.wb_logger.log({f"eval_{key}": value}, step=step)
+        metric_train_result = self.metric_tracker.compute()
+        metric_eval_result = eval_metric_tracker.compute()
 
-        # Reset statistics after writing to wandb
-        self.train_stats.reset()
+        if self.wb_logger is not None:
+            logs = {
+                **metric_train_result,
+            }
+
+            for key, value in metric_eval_result.items():
+                logs[f"eval_{key}"] = value
+            for key, value in rouge_score.items():
+                logs[f"eval_{key}"] = value
+
+            self.wb_logger.log(logs=logs, step=step)
+
+            # Reset metric tracker after writing to wandb
+            self.metric_tracker.reset()
 
     def _save_checkpoint(self, global_step: int, epoch: int) -> None:
         model_filepath = get_weights_file_path(

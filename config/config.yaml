@@ -124,6 +124,6 @@ topk: 2
 statistic_dir: trained/statistics
 
 # Wandb writer configs
-wandb_project_name: en-text-sum-bart
+wandb_project_name: en-text-sum-fine-tuned-bart
 wandb_log_dir: wandb-logs
 wandb_key: wandb-key

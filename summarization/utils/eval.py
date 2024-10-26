@@ -8,7 +8,7 @@ from transformers import BartTokenizer
 
 from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken
-from .statistics import Statistics
+from .metric_tracker import MetricTracker
 
 
 def create_encoder_mask(encoder_input: Tensor, pad_token_id: int) -> Tensor:
@@ -239,13 +239,13 @@ def evaluate(
     tokenizer: BartTokenizer,
     criterion: nn.CrossEntropyLoss,
     device: torch.device,
-) -> Statistics:
+) -> MetricTracker:
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
     model.to(device=device)
 
     # Set model to evaluation mode
     model.eval()
-    eval_stats = Statistics()
+    eval_metric_tracker = MetricTracker()
 
     for batch in val_dataloader:
         # encoder_input (batch_size, seq_length)
@@ -273,9 +273,9 @@ def evaluate(
         )
 
         loss = criterion(logits.view(-1, logits.size(-1)), labels.view(-1))
-        eval_stats.update(loss=loss.item())
+        eval_metric_tracker.update(loss=loss.item())
 
     # Set model back to training mode
     model.train()
 
-    return eval_stats
+    return eval_metric_tracker
