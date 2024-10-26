@@ -9,7 +9,7 @@ from .utils.mix import write_to_csv
 from .utils.eval import evaluate
 from .utils.path import get_list_weights_file_paths
 from .utils.tokenizer import load_tokenizer
-from .utils.rouge import compute_dataset_rouge
+from .utils.metrics import compute_rouge_bert_score
 
 
 def test(config: dict) -> None:
@@ -61,7 +61,7 @@ def test(config: dict) -> None:
         criterion=loss_fn,
         device=device,
     )
-    test_rouge_scores = compute_dataset_rouge(
+    test_rouge_scores = compute_rouge_bert_score(
         model=model,
         dataset=test_dataloader.dataset,
         tokenizer=tokenizer,
@@ -69,6 +69,8 @@ def test(config: dict) -> None:
         device=device,
         beam_size=config["beam_size"],
         topk=config["topk"],
+        eval_bert_score=config["eval_bert_score"],
+        rescale=config["rescale"],
         log_examples=config["log_examples"],
         logging_steps=config["logging_steps"],
         use_stemmer=config["use_stemmer"],

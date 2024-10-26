@@ -11,7 +11,7 @@ from typing import Optional
 from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken
 from .utils.eval import evaluate
-from .utils.rouge import compute_dataset_rouge
+from .utils.metrics import compute_rouge_bert_score
 from .utils.path import get_weights_file_path
 from .utils.mix import is_torch_cuda_available
 from .utils.wb_logger import WandbLogger
@@ -160,7 +160,7 @@ class Trainer:
                         criterion=self.criterion,
                         device=self.args.device,
                     )
-                    rouge_score = compute_dataset_rouge(
+                    scores = compute_rouge_bert_score(
                         model=self.model.module if self.args.use_ddp else self.model,
                         dataset=val_dataloader.dataset,
                         tokenizer=self.tokenizer,
@@ -168,6 +168,8 @@ class Trainer:
                         device=self.args.device,
                         beam_size=self.args.beam_size,
                         topk=self.args.topk,
+                        eval_bert_score=self.args.eval_bert_score,
+                        rescale=self.args.rescale,
                         log_examples=self.args.log_examples,
                         logging_steps=self.args.logging_steps,
                         rouge_keys=self.args.rouge_keys,
@@ -178,7 +180,7 @@ class Trainer:
                     self._log_to_hub(
                         step=global_step,
                         eval_metric_tracker=eval_metric_tracker,
-                        rouge_score=rouge_score,
+                        scores=scores,
                     )
 
                 # Save model
@@ -192,7 +194,7 @@ class Trainer:
         self,
         step: int,
         eval_metric_tracker: MetricTracker,
-        rouge_score: dict[str, float],
+        scores: dict[str, float],
     ) -> None:
         metric_train_result = self.metric_tracker.compute()
         metric_eval_result = eval_metric_tracker.compute()
@@ -204,7 +206,7 @@ class Trainer:
 
             for key, value in metric_eval_result.items():
                 logs[f"eval_{key}"] = value
-            for key, value in rouge_score.items():
+            for key, value in scores.items():
                 logs[f"eval_{key}"] = value
 
             self.wb_logger.log(logs=logs, step=step)

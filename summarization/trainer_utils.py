@@ -19,6 +19,8 @@ class TrainingArguments:
     save_every_n_steps: int = 5000
     beam_size: Optional[int] = None
     topk: int = 1
+    eval_bert_score: bool = True
+    rescale: bool = True
     log_examples: bool = True
     logging_steps: int = 100
     rouge_keys: List[str] | Tuple[str] = field(

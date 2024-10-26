@@ -112,6 +112,10 @@ rouge_keys:
 use_stemmer: True
 accumulate: best # 'best' | 'avg'
 
+# Bert Score configs
+eval_bert_score: True
+rescale: True
+
 # Compute Rouge Score configs
 log_examples: True
 logging_steps: 5000
