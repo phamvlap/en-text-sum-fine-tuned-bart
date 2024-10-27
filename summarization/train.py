@@ -172,6 +172,8 @@ def train(config: dict) -> None:
         use_ddp=config["use_ddp"],
         rank=config["rank"] if config["use_ddp"] else None,
         local_rank=config["local_rank"] if config["use_ddp"] else None,
+        world_size=config["world_size"] if config["use_ddp"] else None,
+        max_eval_steps=config["max_eval_steps"],
     )
 
     wb_logger = None

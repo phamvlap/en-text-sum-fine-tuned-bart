@@ -120,6 +120,8 @@ def compute_rouge_bert_score(
     use_ddp: bool = False,
     rank: Optional[int] = None,
     local_rank: Optional[int] = None,
+    world_size: Optional[int] = None,
+    max_steps: Optional[int] = None,
 ) -> dict[str, float]:
     pred_text_list = []
     target_text_list = []
@@ -146,19 +148,40 @@ def compute_rouge_bert_score(
             accumulate=accumulate,
         )
 
+    if max_steps is None:
+        total_iters = len(dataset)
+    else:
+        if use_ddp:
+            if world_size is None:
+                raise ValueError(
+                    "world_size must be not None if use_ddp is True and max_steps is not None"
+                )
+            else:
+                if max_steps % world_size != 0:
+                    raise ValueError(
+                        f"max_steps must be divisible by world_size = {world_size}"
+                    )
+                max_steps = max_steps // world_size
+        total_iters = min(len(dataset), max_steps)
+
     if use_ddp:
         dataset_iterator = tqdm(
             dataset,
             desc=f"[GPU-{rank}] Computing metrics",
             disable=local_rank != 0,
+            total=total_iters,
         )
     else:
         dataset_iterator = tqdm(
             dataset,
             desc="Computing metrics",
+            total=total_iters,
         )
 
     for idx, data in enumerate(dataset_iterator):
+        if idx >= total_iters:
+            break
+
         encoder_input = data["encoder_input"]
         labels = data["labels"]
 

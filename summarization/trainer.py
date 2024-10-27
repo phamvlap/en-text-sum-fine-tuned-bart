@@ -189,6 +189,8 @@ class Trainer:
                         use_ddp=self.args.use_ddp,
                         rank=self.args.rank,
                         local_rank=self.args.local_rank,
+                        world_size=self.args.world_size,
+                        max_steps=self.args.max_eval_steps,
                     )
 
                     self._log_to_hub(

@@ -37,3 +37,5 @@ class TrainingArguments:
     use_ddp: bool = False
     rank: Optional[int] = None
     local_rank: Optional[int] = None
+    world_size: Optional[int] = None
+    max_eval_steps: int = 100
