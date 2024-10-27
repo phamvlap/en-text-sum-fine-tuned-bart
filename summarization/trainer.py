@@ -166,6 +166,7 @@ class Trainer:
                         criterion=self.criterion,
                         device=self.args.device,
                         use_ddp=self.args.use_ddp,
+                        rank=self.args.rank,
                         local_rank=self.args.local_rank,
                     )
                     scores = compute_rouge_bert_score(
@@ -184,6 +185,7 @@ class Trainer:
                         use_stemmer=self.args.use_stemmer,
                         accumulate=self.args.accumulate,
                         use_ddp=self.args.use_ddp,
+                        rank=self.args.rank,
                         local_rank=self.args.local_rank,
                     )
 

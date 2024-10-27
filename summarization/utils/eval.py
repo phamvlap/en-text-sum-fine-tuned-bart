@@ -7,6 +7,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from transformers import BartTokenizer
 from typing import Optional
+from tqdm import tqdm
 
 from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken
@@ -243,13 +244,14 @@ def evaluate(
     criterion: nn.CrossEntropyLoss,
     device: torch.device,
     use_ddp: bool = False,
+    rank: Optional[int] = None,
     local_rank: Optional[int] = None,
 ) -> MetricTracker:
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
     assert (
-        local_rank is not None if use_ddp else True
-    ), "local_rank must be not None if use DDP"
+        local_rank is not None and rank is not None if use_ddp else True
+    ), "local_rank and rank must be not None if use DDP"
 
     if use_ddp:
         model.to(local_rank)
@@ -260,7 +262,19 @@ def evaluate(
     model.eval()
     eval_metric_tracker = MetricTracker()
 
-    for batch in val_dataloader:
+    if use_ddp:
+        val_iterator = tqdm(
+            val_dataloader,
+            desc=f"[GPU-{rank}] Evaluating model",
+            disable=local_rank != 0,
+        )
+    else:
+        val_iterator = tqdm(
+            val_dataloader,
+            desc="Evaluating model",
+        )
+
+    for batch in val_iterator:
         # encoder_input (batch_size, seq_length)
         # decoder_input (batch_size, seq_length)
         # labels (batch_size, seq_length)
@@ -292,6 +306,8 @@ def evaluate(
 
         loss = criterion(logits.view(-1, logits.size(-1)), labels.view(-1))
         eval_metric_tracker.update(loss=loss.item())
+
+        val_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
 
     # Set model back to training mode
     model.train()

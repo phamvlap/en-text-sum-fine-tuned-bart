@@ -6,6 +6,7 @@ from torchmetrics.text.rouge import ROUGEScore
 from torchmetrics.text.bert import BERTScore
 from transformers import BartTokenizer
 from typing import Literal, Callable, Optional, List, Tuple, Sequence
+from tqdm import tqdm
 
 from bart.model import FineTunedBartForGeneration
 from ..summarization_dataset import SummarizationDataset
@@ -117,6 +118,7 @@ def compute_rouge_bert_score(
     normalizer_function: Optional[Callable] = None,
     accumulate: Literal["best", "avg"] = "avg",
     use_ddp: bool = False,
+    rank: Optional[int] = None,
     local_rank: Optional[int] = None,
 ) -> dict[str, float]:
     pred_text_list = []
@@ -126,8 +128,8 @@ def compute_rouge_bert_score(
     model.eval()
 
     assert (
-        local_rank is not None if use_ddp else True
-    ), "local_rank must be not None if use DDP"
+        local_rank is not None and rank is not None if use_ddp else True
+    ), "local_rank and rank must be not None if use DDP"
 
     rouge_scorer = RougeScorer(
         rouge_keys=rouge_keys,
@@ -144,7 +146,19 @@ def compute_rouge_bert_score(
             accumulate=accumulate,
         )
 
-    for idx, data in enumerate(dataset):
+    if use_ddp:
+        dataset_iterator = tqdm(
+            dataset,
+            desc=f"[GPU-{rank}] Computing metrics",
+            disable=local_rank != 0,
+        )
+    else:
+        dataset_iterator = tqdm(
+            dataset,
+            desc="Computing metrics",
+        )
+
+    for idx, data in enumerate(dataset_iterator):
         encoder_input = data["encoder_input"]
         labels = data["labels"]
 
