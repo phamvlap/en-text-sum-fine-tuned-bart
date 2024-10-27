@@ -1,1 +1,4 @@
 contractions==0.1.73
+datasets==2.21.0
+torchmetrics==1.4.1
+transformers==4.44.2
