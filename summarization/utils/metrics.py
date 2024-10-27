@@ -49,10 +49,16 @@ class RougeScorer:
 class BertScorer:
     def __init__(
         self,
+        max_length: int,
+        model_name_or_path: str = "roberta-large",
         rescale: bool = True,
         accumulate: Literal["best", "avg"] = "avg",
     ) -> None:
-        self.bert_scorer = BERTScore(rescale_with_baseline=rescale)
+        self.bert_scorer = BERTScore(
+            model_name_or_path=model_name_or_path,
+            max_length=max_length,
+            rescale_with_baseline=rescale,
+        )
         self.accumulate = accumulate
 
     def compute(
@@ -144,6 +150,7 @@ def compute_rouge_bert_score(
     bert_scorer = None
     if eval_bert_score:
         bert_scorer = BertScorer(
+            max_length=seq_length,
             rescale=rescale,
             accumulate=accumulate,
         )
