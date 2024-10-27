@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import BartTokenizer
 from tqdm import tqdm
@@ -65,7 +66,8 @@ class Trainer:
             torch.cuda.empty_cache()
 
             # Ensure shuffling work properly across multiple epochs
-            train_dataloader.sampler.set_epoch(epoch)
+            if isinstance(train_dataloader.sampler, DistributedSampler):
+                train_dataloader.sampler.set_epoch(epoch)
 
             if self.args.use_ddp:
                 batch_iterator = tqdm(
