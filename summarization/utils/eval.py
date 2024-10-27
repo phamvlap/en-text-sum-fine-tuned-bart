@@ -40,6 +40,9 @@ def greedy_search_decode(
     input_ids: Tensor,
     tokenizer: BartTokenizer,
     seq_length: int,
+    device: torch.device,
+    use_ddp: bool = False,
+    local_rank: Optional[int] = None,
 ) -> Tensor:
     """
     Args:
@@ -47,6 +50,9 @@ def greedy_search_decode(
         input_ids: input tensor, shape `(seq_length,)`
         tokenizer: tokenizer of BartTokenizer
         seq_length: maximum sequence length
+        device: torch.device
+        use_ddp: whether to use DDP
+        local_rank: local rank if use DDP
     Returns:
         Tensor: output tensor, shape `(seq_length,)`
     """
@@ -55,20 +61,21 @@ def greedy_search_decode(
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
     # input_ids (1, seq_length)
-    input_ids = input_ids.unsqueeze(dim=0)
+    assert (
+        local_rank is not None if use_ddp else True
+    ), "local_rank must be not None if use DDP"
 
-    # Get primitive model
-    model = model.module if isinstance(model, DDP) else model
+    if use_ddp:
+        model.to(local_rank)
+        input_ids = input_ids.unsqueeze(dim=0).to(local_rank)
+    else:
+        model.to(device)
+        input_ids = input_ids.unsqueeze(dim=0).to(device)
 
     # encoder_attention_mask (1, seq_length)
     encoder_attention_mask = create_encoder_mask(
         encoder_input=input_ids,
         pad_token_id=pad_token_id,
-    )
-    # encoder_output (1, seq_length, d_model)
-    encoder_output = model.encode(
-        encoder_input_ids=input_ids,
-        encoder_attn_mask=encoder_attention_mask,
     )
 
     # decoder_input (1, 1)
@@ -80,17 +87,17 @@ def greedy_search_decode(
             pad_token_id=pad_token_id,
         )
 
-        # decoder_output (1, _, d_model)
-        decoder_output = model.decode(
+        # logits (1, decoder_input.size(1), vocab_size)
+        logits = model(
+            encoder_input_ids=input_ids,
+            encoder_attn_mask=encoder_attention_mask,
             decoder_input_ids=decoder_input,
             decoder_attn_mask=decoder_attention_mask,
-            encoder_output=encoder_output,
-            encoder_attn_mask=encoder_attention_mask,
         )
 
-        # logits (1, _, vocab_size)
-        logits = model.proj(decoder_output[:, -1, :])
-        next_token = torch.argmax(input=logits, dim=-1)
+        # last_logits (1, vocab_size)
+        last_logits = logits[:, -1, :]
+        next_token = torch.argmax(input=last_logits, dim=-1)
 
         decoder_input = torch.cat(
             [
@@ -118,7 +125,10 @@ def beam_search_decode(
     input_ids: Tensor,
     tokenizer: BartTokenizer,
     seq_length: int,
+    device: torch.device,
     topk: int = 1,
+    use_ddp: bool = False,
+    local_rank: Optional[int] = None,
 ) -> list[Tensor]:
     """
     Args:
@@ -127,7 +137,10 @@ def beam_search_decode(
         input_ids: input tensor, shape `(seq_length,)`
         tokenizer: tokenizer of BartTokenizer
         seq_length: maximum sequence length
+        device: torch.device
         topk: top k best candidates returned (default: 1)
+        use_ddp: whether to use DDP
+        local_rank: local rank if use DDP
     Returns:
         list[Tensor]: list of output tensors, each tensor with shape `(seq_length,)`
     """
@@ -136,20 +149,21 @@ def beam_search_decode(
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
     # input_ids (1, seq_length)
-    input_ids = input_ids.unsqueeze(dim=0)
+    assert (
+        local_rank is not None if use_ddp else True
+    ), "local_rank must be not None if use DDP"
 
-    # Get primitive model
-    model = model.module if isinstance(model, DDP) else model
+    if use_ddp:
+        model.to(local_rank)
+        input_ids = input_ids.unsqueeze(dim=0).to(local_rank)
+    else:
+        model.to(device)
+        input_ids = input_ids.unsqueeze(dim=0).to(device)
 
     # encoder_attention_mask (1, seq_length)
     encoder_attention_mask = create_encoder_mask(
         encoder_input=input_ids,
         pad_token_id=pad_token_id,
-    )
-    # encoder_output (1, seq_length, d_model)
-    encoder_output = model.encode(
-        encoder_input_ids=input_ids,
-        encoder_attn_mask=encoder_attention_mask,
     )
 
     # Initialize decoder input with only <s> token (1, 1)
@@ -179,21 +193,20 @@ def beam_search_decode(
                 pad_token_id=pad_token_id,
             )
 
-            # decoder_output (1, cand.size(1), d_model)
-            decoder_output = model.decode(
+            # logits (1, cand.size(1), vocab_size)
+            logits = model(
+                encoder_input_ids=input_ids,
+                encoder_attn_mask=encoder_attention_mask,
                 decoder_input_ids=cand,
                 decoder_attn_mask=decoder_attention_mask,
-                encoder_output=encoder_output,
-                encoder_attn_mask=encoder_attention_mask,
             )
 
-            # Get the last token logits
-            # logits (1, cand.size(1), vocab_size)
-            logits = model.proj(decoder_output[:, -1, :])
+            # last_logits (1, vocab_size)
+            last_logits = logits[:, -1, :]
 
             # Get the next token probabilities
-            # norm_probs (1, cand.size(1), vocab_size)
-            norm_probs = Func.log_softmax(logits, dim=-1) / length_penalty(
+            # norm_probs (1, vocab_size)
+            norm_probs = Func.log_softmax(last_logits, dim=-1) / length_penalty(
                 length=cand.size(1)
             )
 
@@ -205,6 +218,7 @@ def beam_search_decode(
             for i in range(beam_size):
                 # next_token (1, 1)
                 next_token = topk_indices[0][i].unsqueeze(dim=0).unsqueeze(dim=0)
+                next_token = next_token.type_as(input_ids)
                 next_token_score = topk_probs[0][i].item()
 
                 # cand (1, cand.size(1))

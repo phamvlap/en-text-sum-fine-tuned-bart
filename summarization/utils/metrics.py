@@ -145,12 +145,8 @@ def compute_rouge_bert_score(
         )
 
     for idx, data in enumerate(dataset):
-        if use_ddp:
-            encoder_input = data["encoder_input"].to(local_rank)
-            labels = data["labels"].to(local_rank)
-        else:
-            encoder_input = data["encoder_input"].to(device)
-            labels = data["labels"].to(device)
+        encoder_input = data["encoder_input"]
+        labels = data["labels"]
 
         if beam_size is not None and beam_size > 1:
             cands = beam_search_decode(
@@ -160,6 +156,9 @@ def compute_rouge_bert_score(
                 tokenizer=tokenizer,
                 seq_length=seq_length,
                 topk=topk,
+                device=device,
+                use_ddp=use_ddp,
+                local_rank=local_rank,
             )
             pred_tokens = cands[0]
         else:
@@ -168,6 +167,9 @@ def compute_rouge_bert_score(
                 input_ids=encoder_input,
                 tokenizer=tokenizer,
                 seq_length=seq_length,
+                device=device,
+                use_ddp=use_ddp,
+                local_rank=local_rank,
             )
 
         src_tokens = encoder_input.detach().cpu().numpy()
