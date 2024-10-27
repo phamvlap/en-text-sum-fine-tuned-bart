@@ -51,12 +51,14 @@ class BertScorer:
         self,
         max_length: int,
         model_name_or_path: str = "roberta-large",
+        truncation: bool = True,
         rescale: bool = True,
         accumulate: Literal["best", "avg"] = "avg",
     ) -> None:
         self.bert_scorer = BERTScore(
             model_name_or_path=model_name_or_path,
             max_length=max_length,
+            truncation=truncation,
             rescale_with_baseline=rescale,
         )
         self.accumulate = accumulate
@@ -122,6 +124,7 @@ def compute_rouge_bert_score(
     use_stemmer: bool = True,
     rouge_keys: Optional[List[str] | Tuple[str]] = None,
     normalizer_function: Optional[Callable] = None,
+    truncation: bool = True,
     accumulate: Literal["best", "avg"] = "avg",
     use_ddp: bool = False,
     rank: Optional[int] = None,
@@ -151,6 +154,7 @@ def compute_rouge_bert_score(
     if eval_bert_score:
         bert_scorer = BertScorer(
             max_length=seq_length,
+            truncation=truncation,
             rescale=rescale,
             accumulate=accumulate,
         )
