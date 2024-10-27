@@ -5,6 +5,9 @@ import torch
 import torch.nn as nn
 
 from pathlib import Path
+from datetime import datetime
+from pytz import timezone
+
 from .path import make_dir
 
 
@@ -66,3 +69,26 @@ def write_to_yaml(data: dict, file_path: str | Path) -> None:
 
     with open(file_path, "w") as file:
         yaml.dump(data, file, default_flow_style=False)
+
+
+def get_current_time(to_string: bool = False) -> datetime | str:
+    timezone_name = "Asia/Ho_Chi_Minh"
+    tz = timezone(timezone_name)
+
+    now_date = datetime.now(tz)
+
+    if to_string:
+        formatted_date = now_date.strftime("%H-%M-%S_%m-%d-%Y")
+        return formatted_date
+    return now_date
+
+
+def print_once(config: dict, text: str) -> None:
+    if is_torch_cuda_available():
+        if config["use_ddp"]:
+            if config["rank"] == 0:
+                print(text)
+        else:
+            print(text)
+    else:
+        print(text)

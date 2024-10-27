@@ -13,7 +13,12 @@ from .trainer import Trainer
 from .trainer_utils import TrainingArguments
 from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
-from .utils.mix import count_parameters, is_torch_cuda_available
+from .utils.mix import (
+    count_parameters,
+    is_torch_cuda_available,
+    get_current_time,
+    print_once,
+)
 from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_paths
 from .utils.optimizer import get_optimizer
 from .utils.lr_scheduler import get_lr_scheduler
@@ -32,6 +37,13 @@ def ddp_setup(config: dict) -> None:
         # Use NCCL backend for communication between processes
         init_process_group(backend="nccl", init_method="env://")
 
+        # Devide the batch size by number of processes
+        for key in ["batch_size_train", "batch_size_val"]:
+            assert (
+                config[key] % config["world_size"] == 0
+            ), f"{key} should be divisible by world_size = {config['world_size']}"
+            config[key] = config[key] // config["world_size"]
+
 
 def train(config: dict) -> None:
     set_seed(seed=config["seed"])
@@ -45,15 +57,21 @@ def train(config: dict) -> None:
 
     device = torch.device(config["device"])
     if is_torch_cuda_available():
-        print(f"Using GPU: {torch.cuda.get_device_name()}")
+        if config["use_ddp"]:
+            if config["rank"] == 0:
+                device_name = torch.cuda.get_device_name()
+                device_count = torch.cuda.device_count()
+                print(f"Running on GPU: {device_name} x {device_count}")
+        else:
+            print(f"Running on GPU: {torch.cuda.get_device_name()}")
     else:
-        print("Using CPU")
+        print("Running on CPU")
 
-    print("Loading tokenizer...")
+    print_once(config, "Loading tokenizer...")
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
-    print("Loading dataloaders...")
+    print_once(config, "Loading dataloaders...")
     train_dataloader = get_dataloader(
         tokenizer=tokenizer,
         split="train",
@@ -87,13 +105,13 @@ def train(config: dict) -> None:
         )
 
     if model_filename is None:
-        print("Starting training model from scratch")
+        print_once(config, "Starting training model from scratch")
         model_path = config["model_name_or_path"]
         bart_model = build_bart_model(model_path)
         bart_model_config = bart_model.get_config()
         bart_model.to(device=device)
     else:
-        print("Loading model from {}".format(model_filename))
+        print_once(config, "Loading model from {}".format(model_filename))
 
         checkpoint_states = torch.load(model_filename, map_location=device)
 
@@ -130,8 +148,9 @@ def train(config: dict) -> None:
             find_unused_parameters=True,
         )
 
-    print(
-        f"The model has {count_parameters(original_bart_model):,} trainable parameters."
+    print_once(
+        config,
+        f"The model has {count_parameters(original_bart_model):,} trainable parameters.",
     )
 
     # Optimizer
@@ -182,7 +201,7 @@ def train(config: dict) -> None:
             "model_config": bart_model_config.__dict__,
             "training_args": training_args.__dict__,
         }
-        display_name = f"running_{str(datetime.today().strftime('%H-%M-%S_%m-%d-%Y'))}"
+        display_name = f"running_{get_current_time(to_string=True)}"
 
         wb_logger = WandbLogger(
             project_name=config["wandb_project_name"],

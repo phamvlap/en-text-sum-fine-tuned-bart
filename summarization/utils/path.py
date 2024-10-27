@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 
 def join_path(base_dir: str, sub_path: str) -> str:
@@ -15,11 +16,18 @@ def make_dirs(config: dict, dir_names: list[str]) -> None:
         Path(dir_path).mkdir(parents=True, exist_ok=True)
 
 
-def get_weights_file_path(model_basedir: str, model_basename: str, epoch: int) -> str:
-    return join_path(
+def get_weights_file_path(
+    model_basedir: str,
+    model_basename: str,
+    epoch: int,
+) -> Optional[str]:
+    file_path = join_path(
         base_dir=model_basedir,
         sub_path=f"{model_basename}{epoch}.pt",
     )
+    if not Path(file_path).exists():
+        return None
+    return file_path
 
 
 def get_list_weights_file_paths(config: dict) -> None | list[Path]:
