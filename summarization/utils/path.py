@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 
 def join_path(base_dir: str, sub_path: str) -> str:
@@ -20,13 +19,11 @@ def get_weights_file_path(
     model_basedir: str,
     model_basename: str,
     epoch: int,
-) -> Optional[str]:
+) -> str:
     file_path = join_path(
         base_dir=model_basedir,
         sub_path=f"{model_basename}{epoch}.pt",
     )
-    if not Path(file_path).exists():
-        return None
     return file_path
 
 

@@ -18,6 +18,7 @@ from .utils.mix import is_torch_cuda_available
 from .utils.wb_logger import WandbLogger
 from .trainer_utils import TrainingArguments
 from .utils.metric_tracker import MetricTracker
+from .utils.path import make_dir
 
 
 class Trainer:
@@ -235,6 +236,7 @@ class Trainer:
             self.metric_tracker.reset()
 
     def _save_checkpoint(self, global_step: int, epoch: int) -> None:
+        make_dir(dir_path=self.args.model_dir)
         model_filepath = get_weights_file_path(
             model_basedir=self.args.model_dir,
             model_basename=self.args.model_basename,
