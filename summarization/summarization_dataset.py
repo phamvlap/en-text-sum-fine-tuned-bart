@@ -2,14 +2,15 @@ import pandas as pd
 import torch
 
 from torch import Tensor
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, Sampler
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.utils.rnn import pad_sequence
 from transformers import BartTokenizer
-from typing import Literal
+from typing import Literal, Optional
 
 from bart.constants import SpecialToken
 from .preprocess import load_dataset
+from .trainer_utils import has_length
 
 
 class SummarizationDataset(Dataset):
@@ -33,7 +34,7 @@ class SummarizationDataset(Dataset):
     def __len__(self) -> int:
         return len(self.df)
 
-    def __getitem__(self, idx: int) -> dict:
+    def __getitem__(self, idx: int) -> dict[str, Tensor]:
         row = self.df.iloc[idx]
 
         text_src = row[self.text_src]
@@ -164,15 +165,7 @@ def get_dataloader(
         seq_length=config["seq_length"],
     )
 
-    sampler = None
-    if config["use_ddp"]:
-        sampler = DistributedSampler(
-            dataset,
-            num_replicas=config["world_size"],
-            rank=config["rank"],
-            shuffle=True,
-            seed=config["seed"],
-        )
+    sampler = _get_sampler(dataset=dataset, config=config)
 
     is_shuffle = sampler is None and shuffle
 
@@ -183,6 +176,22 @@ def get_dataloader(
         collate_fn=lambda batch: collate_fn(batch=batch, tokenizer=tokenizer),
         pin_memory=True,
         sampler=sampler,
+        num_works=config["num_works"],
     )
 
     return dataloader
+
+
+def _get_sampler(dataset: Dataset, config: dict) -> Optional[Sampler]:
+    if has_length(dataset):
+        return None
+    sampler = None
+    if config["use_ddp"]:
+        sampler = DistributedSampler(
+            dataset,
+            num_replicas=config["world_size"],
+            rank=config["rank"],
+            shuffle=True,
+            seed=config["seed"],
+        )
+    return sampler

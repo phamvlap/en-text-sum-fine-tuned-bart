@@ -1,5 +1,6 @@
 import torch
 
+from torch.utils.data import Dataset
 from dataclasses import dataclass, field
 from typing import Literal, Optional, List, Tuple
 
@@ -40,3 +41,11 @@ class TrainingArguments:
     local_rank: Optional[int] = None
     world_size: Optional[int] = None
     max_eval_steps: int = 100
+    max_train_steps: int = 5000
+
+
+def has_length(dataset: Dataset) -> bool:
+    try:
+        return len(dataset) is not None
+    except TypeError:
+        return False
