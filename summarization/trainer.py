@@ -17,7 +17,7 @@ from .utils.eval import evaluate
 from .utils.metrics import compute_rouge_bert_score
 from .utils.path import get_weights_file_path
 from .utils.mix import is_torch_cuda_available, make_dir
-from .utils.wb_logger import WandbLogger
+from .utils.wb_logger import WandbLogger, VALID_PREFIX_KEY
 from .trainer_utils import TrainingArguments
 from .utils.meters import AverageMeter
 
@@ -249,10 +249,10 @@ class Trainer:
         if self.training_loss is not None:
             data["loss"] = self.training_loss.average
 
-        data["eval_loss"] = valid_loss.average
+        data[VALID_PREFIX_KEY + "loss"] = valid_loss.average
 
         for key, value in valid_scores.items():
-            data[f"eval_{key}"] = value
+            data[VALID_PREFIX_KEY + key] = value
 
         self.wb_logger.log(logs=data, step=step)
 

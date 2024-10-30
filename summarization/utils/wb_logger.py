@@ -5,15 +5,15 @@ from typing import Optional
 from .path import make_dir
 
 DEFAULT_LOG_DIR = "wandb-logs"
+VALID_PREFIX_KEY = "eval_"
 
 
 def format_logs(logs: dict) -> dict:
     new_logs = {}
-    eval_prefix = "eval_"
-    eval_prefix_length = len(eval_prefix)
+    eval_prefix_length = len(VALID_PREFIX_KEY)
 
     for key, value in logs.items():
-        if key.startswith(eval_prefix):
+        if key.startswith(VALID_PREFIX_KEY):
             new_logs["val/" + key[eval_prefix_length:]] = value
         else:
             new_logs["train/" + key] = value
@@ -41,7 +41,7 @@ class WandbLogger:
             **args,
         )
 
-    def log(self, logs: dict, step: Optional[int] = None) -> None:
+    def log(self, logs: dict[str, int | float], step: Optional[int] = None) -> None:
         logs = format_logs(logs)
         if step is None:
             self.wb_run.log(logs)
