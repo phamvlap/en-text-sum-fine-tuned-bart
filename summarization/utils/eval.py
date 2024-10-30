@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken
-from .metric_tracker import MetricTracker
+from .meters import AverageMeter
 
 
 def create_encoder_mask(encoder_input: Tensor, pad_token_id: int) -> Tensor:
@@ -246,7 +246,7 @@ def evaluate(
     use_ddp: bool = False,
     rank: Optional[int] = None,
     local_rank: Optional[int] = None,
-) -> MetricTracker:
+) -> AverageMeter:
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
     assert (
@@ -260,7 +260,10 @@ def evaluate(
 
     # Set model to evaluation mode
     model.eval()
-    eval_metric_tracker = MetricTracker()
+    eval_loss = AverageMeter(
+        name="valid_loss",
+        device=device,
+    )
 
     if use_ddp:
         val_iterator = tqdm(
@@ -305,11 +308,11 @@ def evaluate(
         )
 
         loss = criterion(logits.view(-1, logits.size(-1)), labels.view(-1))
-        eval_metric_tracker.update(loss=loss.item())
+        eval_loss.update(value=loss.item())
 
         val_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
 
     # Set model back to training mode
     model.train()
 
-    return eval_metric_tracker
+    return eval_loss

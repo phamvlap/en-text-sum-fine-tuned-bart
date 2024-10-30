@@ -41,7 +41,7 @@ class TrainingArguments:
     local_rank: Optional[int] = None
     world_size: Optional[int] = None
     max_eval_steps: int = 100
-    max_train_steps: int = 5000
+    max_train_steps: int = -1
 
 
 def has_length(dataset: Dataset) -> bool:

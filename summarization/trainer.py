@@ -1,24 +1,28 @@
+from pytz import NonExistentTimeError
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import logging
 
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import BartTokenizer
 from tqdm import tqdm
-from typing import Optional
+from typing import Optional, Union
 
 from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken
 from .utils.eval import evaluate
 from .utils.metrics import compute_rouge_bert_score
 from .utils.path import get_weights_file_path
-from .utils.mix import is_torch_cuda_available
+from .utils.mix import is_torch_cuda_available, make_dir
 from .utils.wb_logger import WandbLogger
 from .trainer_utils import TrainingArguments
-from .utils.metric_tracker import MetricTracker
-from .utils.path import make_dir
+from .utils.meters import AverageMeter
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
 
 class Trainer:
@@ -32,19 +36,17 @@ class Trainer:
         lr_scheduler: Optional[optim.lr_scheduler.LRScheduler] = None,
         scaler_state_dict: Optional[dict] = None,
         wb_logger: Optional[WandbLogger] = None,
+        training_loss: Optional[AverageMeter] = None,
     ) -> None:
         self.model = model
+        self.actual_model = self.get_actual_model(model)
         self.optimizer = optimizer
         self.criterion = criterion
         self.lr_scheduler = lr_scheduler
         self.tokenizer = tokenizer
         self.pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
         self.args = args
-        if isinstance(self.model, DDP):
-            self.bart_config = self.model.module.get_config()
-        else:
-            self.bart_config = self.model.get_config()
-        self.metric_tracker = MetricTracker()
+        self.bart_config = self.actual_model.get_config()
         self.wb_logger = wb_logger
 
         # Automatic Mixed Precision
@@ -55,19 +57,38 @@ class Trainer:
             if scaler_state_dict is not None:
                 self.scaler.load_state_dict(scaler_state_dict)
 
+        # Set up training loss
+        self.training_loss = training_loss
+        if self.training_loss is None:
+            self.training_loss = AverageMeter(
+                name="training_loss",
+                device=self.args.device,
+            )
+
     def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader) -> None:
         # Set model to train mode
         self.model.train()
 
         global_step = self.args.initial_global_step
 
+        if self.args.max_train_steps > 0 and self.args.num_epochs > 0:
+            logger.warning("max_train_steps is provided, it will override num_epochs")
+
         # Traing loop
         for epoch in range(self.args.initial_epoch, self.args.num_epochs):
+            if (
+                self.args.max_train_steps > 0
+                and global_step > self.args.max_train_steps
+            ):
+                break
+
             # Empty cache
             torch.cuda.empty_cache()
 
             # Ensure shuffling work properly across multiple epochs
-            if isinstance(train_dataloader.sampler, DistributedSampler):
+            if isinstance(train_dataloader, DataLoader) and isinstance(
+                train_dataloader.sampler, DistributedSampler
+            ):
                 train_dataloader.sampler.set_epoch(epoch)
 
             if self.args.use_ddp:
@@ -153,7 +174,8 @@ class Trainer:
                             )
                     self.lr_scheduler.step()
 
-                self.metric_tracker.update(loss=loss.item())
+                if self.training_loss is not None:
+                    self.training_loss.update(value=loss.item())
 
                 batch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
                 global_step += 1
@@ -162,7 +184,10 @@ class Trainer:
                     self.wb_logger.log({"loss": loss.item()})
 
                 if global_step % self.args.eval_every_n_steps == 0:
-                    eval_metric_tracker = evaluate(
+                    if self.args.use_ddp and self.training_loss is not None:
+                        self.training_loss.all_reduce()
+
+                    eval_loss = evaluate(
                         model=self.model,
                         val_dataloader=val_dataloader,
                         tokenizer=self.tokenizer,
@@ -197,13 +222,13 @@ class Trainer:
 
                     self._log_to_hub(
                         step=global_step,
-                        eval_metric_tracker=eval_metric_tracker,
-                        scores=scores,
+                        valid_loss=eval_loss,
+                        valid_scores=scores,
                     )
 
                 # Save model
                 if (
-                    self.args.local_rank == 0
+                    self._is_local_main_process()
                     and global_step % self.args.save_every_n_steps == 0
                 ):
                     self._save_checkpoint(global_step=global_step, epoch=epoch)
@@ -214,26 +239,26 @@ class Trainer:
     def _log_to_hub(
         self,
         step: int,
-        eval_metric_tracker: MetricTracker,
-        scores: dict[str, float],
+        valid_loss: AverageMeter,
+        valid_scores: dict[str, float],
     ) -> None:
-        metric_train_result = self.metric_tracker.compute()
-        metric_eval_result = eval_metric_tracker.compute()
+        if self.wb_logger is None:
+            return
 
-        if self.wb_logger is not None:
-            logs = {
-                **metric_train_result,
-            }
+        data = {}
+        if self.training_loss is not None:
+            data["loss"] = self.training_loss.average
 
-            for key, value in metric_eval_result.items():
-                logs[f"eval_{key}"] = value
-            for key, value in scores.items():
-                logs[f"eval_{key}"] = value
+        data["eval_loss"] = valid_loss.average
 
-            self.wb_logger.log(logs=logs, step=step)
+        for key, value in valid_scores.items():
+            data[f"eval_{key}"] = value
 
-            # Reset metric tracker after writing to wandb
-            self.metric_tracker.reset()
+        self.wb_logger.log(logs=data, step=step)
+
+        # Reset metric tracker after writing to wandb
+        if self.training_loss is not None:
+            self.training_loss.reset()
 
     def _save_checkpoint(self, global_step: int, epoch: int) -> None:
         make_dir(dir_path=self.args.model_dir)
@@ -242,15 +267,10 @@ class Trainer:
             model_basename=self.args.model_basename,
             epoch=epoch,
         )
-        model_state_dict = (
-            self.model.module.state_dict()
-            if self.args.use_ddp
-            else self.model.state_dict()
-        )
         checkpoint_states = {
             "epoch": epoch,
             "global_step": global_step,
-            "model_state_dict": model_state_dict,
+            "model_state_dict": self.actual_model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "config": self.bart_config,
         }
@@ -262,3 +282,17 @@ class Trainer:
             )
 
         torch.save(checkpoint_states, model_filepath)
+
+    @staticmethod
+    def get_actual_model(
+        model: Union[nn.Module, FineTunedBartForGeneration, DDP],
+    ) -> nn.Module:
+        unwrapped_model = model
+        if isinstance(model, DDP):
+            unwrapped_model = model.module
+        return unwrapped_model
+
+    def _is_local_main_process(self) -> bool:
+        if self.args.use_ddp:
+            return self.args.local_rank == 0
+        return True

@@ -35,7 +35,12 @@ def ddp_setup(config: dict) -> None:
         # Initialize the process group
         torch.cuda.set_device(config["local_rank"])
         # Use NCCL backend for communication between processes
-        init_process_group(backend="nccl", init_method="env://")
+        init_process_group(
+            backend="nccl",
+            init_method="env://",
+            world_size=config["world_size"],
+            rank=config["rank"],
+        )
 
         # Devide the batch size by number of processes
         for key in ["batch_size_train", "batch_size_val"]:
@@ -194,6 +199,7 @@ def train(config: dict) -> None:
         local_rank=config["local_rank"] if config["use_ddp"] else None,
         world_size=config["world_size"] if config["use_ddp"] else None,
         max_eval_steps=config["max_eval_steps"],
+        max_train_steps=config["max_train_steps"],
     )
 
     wb_logger = None
