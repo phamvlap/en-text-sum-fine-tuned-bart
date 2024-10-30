@@ -8,21 +8,35 @@ ADAMW = "adamw"
 def get_optimizer(model: nn.Module, config: dict) -> optim.Optimizer:
     optimizer_alg = config["optimizer"].strip().lower()
 
+    no_decay = ["bias"]
+    grouped_parameters = [
+        {
+            "params": [
+                p for n, p in model.parameters() if not any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": config["weight_decay"],
+        },
+        {
+            "params": [
+                p for n, p in model.parameters() if any(nd in n for nd in no_decay)
+            ],
+            "weight_decay": 0.0,
+        },
+    ]
+
     if optimizer_alg == ADAM:
         optimizer = optim.Adam(
-            model.parameters(),
+            grouped_parameters,
             lr=config["lr"],
             betas=config["betas"],
             eps=config["eps"],
-            weight_decay=config["weight_decay"],
         )
     elif optimizer_alg == ADAMW:
         optimizer = optim.AdamW(
-            model.parameters(),
+            grouped_parameters,
             lr=config["lr"],
             betas=config["betas"],
             eps=config["eps"],
-            weight_decay=config["weight_decay"],
         )
     else:
         raise ValueError(
