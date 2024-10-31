@@ -84,6 +84,7 @@ max_grad_norm: 1.0
 f16_precision: True
 is_logging_wandb: True
 max_eval_steps: 100
+max_train_steps: -1
 
 # BART configs
 seq_length: 512 # max length of input sequence

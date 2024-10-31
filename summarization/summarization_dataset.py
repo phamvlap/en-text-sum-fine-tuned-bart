@@ -176,7 +176,7 @@ def get_dataloader(
         collate_fn=lambda batch: collate_fn(batch=batch, tokenizer=tokenizer),
         pin_memory=True,
         sampler=sampler,
-        num_works=config["num_works"],
+        num_workers=config["num_workers"],
     )
 
     return dataloader
