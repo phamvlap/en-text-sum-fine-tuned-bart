@@ -246,6 +246,7 @@ def evaluate(
     use_ddp: bool = False,
     rank: Optional[int] = None,
     local_rank: Optional[int] = None,
+    show_eval_progress: bool = False,
 ) -> dict[str, float]:
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
@@ -265,17 +266,22 @@ def evaluate(
         device=device,
     )
 
-    if use_ddp:
-        val_iterator = tqdm(
-            val_dataloader,
-            desc=f"[GPU-{rank}] Evaluating model",
-            disable=local_rank != 0,
-        )
-    else:
-        val_iterator = tqdm(
-            val_dataloader,
-            desc="Evaluating model",
-        )
+    val_iterator = val_dataloader
+    if show_eval_progress:
+        if use_ddp:
+            val_iterator = tqdm(
+                val_dataloader,
+                desc=f"[GPU-{rank}] Evaluating model",
+                disable=local_rank != 0,
+            )
+        else:
+            val_iterator = tqdm(
+                val_dataloader,
+                desc="Evaluating model",
+            )
+
+    if not show_eval_progress:
+        print("Evaluating model...")
 
     for batch in val_iterator:
         # encoder_input (batch_size, seq_length)
@@ -310,7 +316,8 @@ def evaluate(
         loss = criterion(logits.view(-1, logits.size(-1)), labels.view(-1))
         eval_loss.update(value=loss.item())
 
-        val_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
+        if show_eval_progress:
+            val_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
 
     # Set model back to training mode
     model.train()

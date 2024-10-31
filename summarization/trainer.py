@@ -224,6 +224,7 @@ class Trainer:
             use_ddp=self.args.use_ddp,
             rank=self.args.rank,
             local_rank=self.args.local_rank,
+            show_eval_progress=self.args.show_eval_progress,
         )
         scores = compute_rouge_bert_score(
             model=self.model,

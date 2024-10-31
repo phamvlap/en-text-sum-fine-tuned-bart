@@ -46,6 +46,7 @@ class TrainingArguments:
     greater_checking: bool = False
     checked_metric: str = "loss"
     max_saved_checkpoints: int = 2
+    show_eval_progress: bool = False
 
 
 def has_length(dataset: Dataset) -> bool:
