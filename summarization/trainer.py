@@ -1,4 +1,3 @@
-from pytz import NonExistentTimeError
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,15 +9,20 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import BartTokenizer
 from tqdm import tqdm
 from typing import Optional, Union
+from pathlib import Path
 
 from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken
 from .utils.eval import evaluate
 from .utils.metrics import compute_rouge_bert_score
-from .utils.path import get_weights_file_path
 from .utils.mix import is_torch_cuda_available, make_dir
 from .utils.wb_logger import WandbLogger, VALID_PREFIX_KEY
-from .trainer_utils import TrainingArguments
+from .trainer_utils import (
+    TrainingArguments,
+    determine_best_metric_value,
+    sorted_checkpoints,
+    rotate_checkpoints,
+)
 from .utils.meters import AverageMeter
 
 logger = logging.getLogger(__name__)
@@ -48,6 +52,10 @@ class Trainer:
         self.args = args
         self.bart_config = self.actual_model.get_config()
         self.wb_logger = wb_logger
+        self.best_checkpoint = None
+        self.best_score_value = (
+            float("-inf") if self.args.greater_checking else float("inf")
+        )
 
         # Automatic Mixed Precision
         # GradScaler: scales the loss and optimizer step
@@ -184,46 +192,9 @@ class Trainer:
                     self.wb_logger.log({"loss": loss.item()})
 
                 if global_step % self.args.eval_every_n_steps == 0:
-                    if self.args.use_ddp and self.training_loss is not None:
-                        self.training_loss.all_reduce()
-
-                    eval_loss = evaluate(
-                        model=self.model,
+                    self._maybe_evaluate(
                         val_dataloader=val_dataloader,
-                        tokenizer=self.tokenizer,
-                        criterion=self.criterion,
-                        device=self.args.device,
-                        use_ddp=self.args.use_ddp,
-                        rank=self.args.rank,
-                        local_rank=self.args.local_rank,
-                    )
-                    scores = compute_rouge_bert_score(
-                        model=self.model,
-                        dataset=val_dataloader.dataset,
-                        tokenizer=self.tokenizer,
-                        seq_length=self.args.seq_length,
-                        device=self.args.device,
-                        beam_size=self.args.beam_size,
-                        topk=self.args.topk,
-                        eval_bert_score=self.args.eval_bert_score,
-                        rescale=self.args.rescale,
-                        log_examples=self.args.log_examples,
-                        logging_steps=self.args.logging_steps,
-                        rouge_keys=self.args.rouge_keys,
-                        use_stemmer=self.args.use_stemmer,
-                        truncation=self.args.truncation,
-                        accumulate=self.args.accumulate,
-                        use_ddp=self.args.use_ddp,
-                        rank=self.args.rank,
-                        local_rank=self.args.local_rank,
-                        world_size=self.args.world_size,
-                        max_steps=self.args.max_eval_steps,
-                    )
-
-                    self._log_to_hub(
                         step=global_step,
-                        valid_loss=eval_loss,
-                        valid_scores=scores,
                     )
 
                 # Save model
@@ -231,42 +202,109 @@ class Trainer:
                     self._is_local_main_process()
                     and global_step % self.args.save_every_n_steps == 0
                 ):
-                    self._save_checkpoint(global_step=global_step, epoch=epoch)
+                    self._save_checkpoint(
+                        global_step=global_step,
+                        epoch=epoch,
+                        step=global_step,
+                    )
 
         if self.wb_logger is not None:
             self.wb_logger.finish()
 
-    def _log_to_hub(
+    def _maybe_evaluate(self, val_dataloader: DataLoader, step: int) -> None:
+        if self.args.use_ddp and self.training_loss is not None:
+            self.training_loss.all_reduce()
+
+        eval_result = evaluate(
+            model=self.model,
+            val_dataloader=val_dataloader,
+            tokenizer=self.tokenizer,
+            criterion=self.criterion,
+            device=self.args.device,
+            use_ddp=self.args.use_ddp,
+            rank=self.args.rank,
+            local_rank=self.args.local_rank,
+        )
+        scores = compute_rouge_bert_score(
+            model=self.model,
+            dataset=val_dataloader.dataset,
+            tokenizer=self.tokenizer,
+            seq_length=self.args.seq_length,
+            device=self.args.device,
+            beam_size=self.args.beam_size,
+            topk=self.args.topk,
+            eval_bert_score=self.args.eval_bert_score,
+            rescale=self.args.rescale,
+            log_examples=self.args.log_examples,
+            logging_steps=self.args.logging_steps,
+            rouge_keys=self.args.rouge_keys,
+            use_stemmer=self.args.use_stemmer,
+            truncation=self.args.truncation,
+            accumulate=self.args.accumulate,
+            use_ddp=self.args.use_ddp,
+            rank=self.args.rank,
+            local_rank=self.args.local_rank,
+            world_size=self.args.world_size,
+            max_steps=self.args.max_eval_steps,
+        )
+
+        self._log_evaluation_result(
+            step=step,
+            valid_result=eval_result,
+            valid_scores=scores,
+        )
+
+        metric_scores = {
+            **eval_result,
+            **scores,
+        }
+
+        new_best_score_value, new_best_checkpoint = determine_best_metric_value(
+            metric_scores=metric_scores,
+            checked_metric=self.args.checked_metric,
+            greater_checking=self.args.greater_checking,
+            best_metric_value=self.best_score_value,
+            output_dir=self.args.model_dir,
+            checkpoint_prefix=self.args.model_basename,
+            step=step,
+        )
+
+        if new_best_score_value is not None:
+            self.best_score_value = new_best_score_value
+        if new_best_checkpoint is not None:
+            self.best_checkpoint = new_best_checkpoint
+
+    def _log_evaluation_result(
         self,
         step: int,
-        valid_loss: AverageMeter,
+        valid_result: dict[str, float],
         valid_scores: dict[str, float],
     ) -> None:
         if self.wb_logger is None:
             return
 
-        data = {}
+        logs: dict[str, float] = {}
         if self.training_loss is not None:
-            data["loss"] = self.training_loss.average
+            logs["loss"] = self.training_loss.average
 
-        data[VALID_PREFIX_KEY + "loss"] = valid_loss.average
+        for key, value in valid_result.items():
+            logs[VALID_PREFIX_KEY + key] = value
 
         for key, value in valid_scores.items():
-            data[VALID_PREFIX_KEY + key] = value
+            logs[VALID_PREFIX_KEY + key] = value
 
-        self.wb_logger.log(logs=data, step=step)
+        self.wb_logger.log(logs=logs, step=step)
 
         # Reset metric tracker after writing to wandb
         if self.training_loss is not None:
             self.training_loss.reset()
 
-    def _save_checkpoint(self, global_step: int, epoch: int) -> None:
+    def _save_checkpoint(self, global_step: int, epoch: int, step: int) -> None:
         make_dir(dir_path=self.args.model_dir)
-        model_filepath = get_weights_file_path(
-            model_basedir=self.args.model_dir,
-            model_basename=self.args.model_basename,
-            epoch=epoch,
+        model_filepath = str(
+            Path(self.args.model_dir) / f"{self.args.model_basename}_{step}.pt"
         )
+
         checkpoint_states = {
             "epoch": epoch,
             "global_step": global_step,
@@ -282,6 +320,19 @@ class Trainer:
             )
 
         torch.save(checkpoint_states, model_filepath)
+
+        # Get all checkpoints and sort them by ascending order
+        checkpoint_sorted = sorted_checkpoints(
+            output_dir=self.args.model_dir,
+            checkpoint_prefix=self.args.model_basename,
+            best_checkpoint=self.best_checkpoint,
+        )
+
+        # Remove old checkpoints
+        rotate_checkpoints(
+            checkpoints=checkpoint_sorted,
+            max_saved_total=self.args.max_saved_checkpoints,
+        )
 
     @staticmethod
     def get_actual_model(

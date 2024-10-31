@@ -4,7 +4,7 @@ seed: 42
 # Model configs
 base_dir: trained
 model_dir: trained/models
-model_basename: bart_model_
+model_basename: bart_model
 model_name_or_path: "facebook/bart-base"
 
 # Dataset configs
@@ -85,6 +85,9 @@ f16_precision: True
 is_logging_wandb: True
 max_eval_steps: 100
 max_train_steps: -1
+greater_checking: False
+checked_metric: loss
+max_saved_checkpoints: 3
 
 # BART configs
 seq_length: 512 # max length of input sequence

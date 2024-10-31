@@ -246,7 +246,7 @@ def evaluate(
     use_ddp: bool = False,
     rank: Optional[int] = None,
     local_rank: Optional[int] = None,
-) -> AverageMeter:
+) -> dict[str, float]:
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
     assert (
@@ -315,4 +315,10 @@ def evaluate(
     # Set model back to training mode
     model.train()
 
-    return eval_loss
+    # Reduce loss for all process in DDP
+    if use_ddp:
+        eval_loss.all_reduce()
+
+    return {
+        "loss": eval_loss.average,
+    }
