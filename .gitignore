@@ -1,6 +1,7 @@
 __pycache__/
 data/
-trained/
 dataset/
-test/
+trained/
+checkpoints/
 logs/
+.env
