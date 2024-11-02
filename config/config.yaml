@@ -28,6 +28,7 @@ lowercase: True
 contractions: True
 remove_invalid_length: True
 remove_invalid_text: True
+attach_text: False
 
 # Tokenizer configs
 tokenizer_train_ds_path: path/to/train/tokenizer/file.csv

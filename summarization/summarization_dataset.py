@@ -6,7 +6,7 @@ from torch.utils.data import Dataset, DataLoader, Sampler
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.utils.rnn import pad_sequence
 from transformers import BartTokenizer
-from typing import Literal, Optional
+from typing import Literal, Optional, Any
 
 from bart.constants import SpecialToken
 from .preprocess import load_dataset
@@ -21,6 +21,7 @@ class SummarizationDataset(Dataset):
         text_src: str,
         text_tgt: str,
         seq_length: int,
+        attach_text: bool = False,
     ) -> None:
         super().__init__()
         self.df = df
@@ -30,11 +31,12 @@ class SummarizationDataset(Dataset):
         self.bos_token_id = self.tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
         self.eos_token_id = self.tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
         self.seq_length = seq_length
+        self.attach_text = attach_text
 
     def __len__(self) -> int:
         return len(self.df)
 
-    def __getitem__(self, idx: int) -> dict[str, Tensor]:
+    def __getitem__(self, idx: int) -> dict[str, Tensor | str]:
         row = self.df.iloc[idx]
 
         text_src = row[self.text_src]
@@ -85,11 +87,17 @@ class SummarizationDataset(Dataset):
         assert tgt_tokens.size(-1) <= self.seq_length
         assert labels.size(-1) <= self.seq_length
 
-        return {
+        data = {
             "encoder_input": src_tokens,
             "decoder_input": tgt_tokens,
             "labels": labels,
         }
+
+        if self.attach_text:
+            data["text_src"] = text_src
+            data["text_tgt"] = text_tgt
+
+        return data
 
 
 def get_summarization_dataset(
@@ -99,6 +107,7 @@ def get_summarization_dataset(
     text_src: str,
     text_tgt: str,
     seq_length: int,
+    attach_text: bool = False,
 ) -> SummarizationDataset:
     if split not in ["train", "val", "test"]:
         raise ValueError(f"split must be one of ['train', 'val', 'test'], got {split}")
@@ -111,10 +120,14 @@ def get_summarization_dataset(
         text_src=text_src,
         text_tgt=text_tgt,
         seq_length=seq_length,
+        attach_text=attach_text,
     )
 
 
-def collate_fn(batch: list, tokenizer: BartTokenizer) -> dict:
+def collate_fn(
+    batch: list[dict[str, Tensor | str]],
+    tokenizer: BartTokenizer,
+) -> dict[str, list[Tensor]]:
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
     src_batch, tgt_batch, label_batch = [], [], []
@@ -151,7 +164,7 @@ def get_dataloader(
     split: Literal["train", "val", "test"],
     batch_size: int,
     shuffle: bool,
-    config: dict,
+    config: dict[str, Any],
 ) -> DataLoader:
     if split not in ["train", "val", "test"]:
         raise ValueError(f"split must be one of ['train', 'val', 'test'], got {split}")
@@ -163,6 +176,7 @@ def get_dataloader(
         text_src=config["text_src"],
         text_tgt=config["text_tgt"],
         seq_length=config["seq_length"],
+        attach_text=config["attach_text"],
     )
 
     sampler = _get_sampler(dataset=dataset, config=config)
@@ -182,8 +196,8 @@ def get_dataloader(
     return dataloader
 
 
-def _get_sampler(dataset: Dataset, config: dict) -> Optional[Sampler]:
-    if has_length(dataset):
+def _get_sampler(dataset: Dataset, config: dict[str, Any]) -> Optional[Sampler]:
+    if not has_length(dataset):
         return None
     sampler = None
     if config["use_ddp"]:
