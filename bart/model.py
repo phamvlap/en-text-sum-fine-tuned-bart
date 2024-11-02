@@ -1,22 +1,69 @@
 import torch.nn as nn
 
 from torch import Tensor
-from transformers import BartModel, PretrainedConfig, BartConfig
-from typing import Optional
+from transformers import BartForConditionalGeneration, PretrainedConfig
+from typing import Literal, Optional
+from dataclasses import dataclass
+
+PRE_TRAINED_BART_MODELS = ["facebook/bart-base", "facebook/bart-large"]
+
+
+@dataclass
+class ModelArguments:
+    model_name_or_path: Literal["facebook/bart-base", "facebook/bart-large"]
+    config_name_or_path: Optional[
+        Literal["facebook/bart-base", "facebook/bart-large"]
+    ] = None
 
 
 class FineTunedBartForGeneration(nn.Module):
     def __init__(
         self,
-        model_path: str,
-        config: Optional[BartConfig | PretrainedConfig] = None,
+        model_args: ModelArguments,
+        config: Optional[PretrainedConfig] = None,
     ) -> None:
+        """
+        Args:
+            model_args: ModelArguments
+            config: PretrainedConfig optional
+        """
         super().__init__()
-        self.bart_model = BartModel.from_pretrained(model_path, config=config)
-        self.config = self.bart_model.config
+        if model_args.model_name_or_path not in PRE_TRAINED_BART_MODELS:
+            raise ValueError(
+                f"Supported models: {', '.join(PRE_TRAINED_BART_MODELS)}, got {model_args.model_name_or_path}"
+            )
+        if config is None:
+            if (
+                model_args.config_name_or_path is not None
+                and model_args.config_name_or_path not in PRE_TRAINED_BART_MODELS
+            ):
+                raise ValueError(
+                    f"Supported model configs: {', '.join(PRE_TRAINED_BART_MODELS)}, got {model_args.config_name_or_path}"
+                )
+            if (
+                model_args.config_name_or_path is not None
+                and model_args.model_name_or_path != model_args.config_name_or_path
+            ):
+                raise ValueError(
+                    f"Model {model_args.model_name_or_path} and config {model_args.config_name_or_path} incompatible"
+                )
+
+            if model_args.config_name_or_path is None:
+                model_args.config_name_or_path = model_args.model_name_or_path
+
+            self.config = PretrainedConfig.from_pretrained(
+                model_args.config_name_or_path
+            )
+        else:
+            self.config = config
+
+        self.bart_model = BartForConditionalGeneration.from_pretrained(
+            model_args.model_name_or_path,
+            config=self.config,
+        )
         self.linear_proj = nn.Linear(self.config.d_model, self.config.vocab_size)
 
-    def get_config(self) -> PretrainedConfig | BartConfig:
+    def get_config(self) -> PretrainedConfig:
         return self.config
 
     def forward(
@@ -44,14 +91,13 @@ class FineTunedBartForGeneration(nn.Module):
             decoder_attention_mask=decoder_attn_mask,
             **kwargs,
         )
-        # output.last_hidden_state (batch_size, seq_len, d_model)
-        logits = self.linear_proj(output.last_hidden_state)
+        logits = output.logits
         return logits
 
     def encode(
         self,
         encoder_input_ids: Tensor,
-        encoder_attn_mask: Tensor,
+        encoder_attn_mask: Optional[Tensor] = None,
     ) -> Tensor:
         """
         Args:
@@ -60,7 +106,7 @@ class FineTunedBartForGeneration(nn.Module):
         Returns:
             Tensor: `(batch_size, seq_length, d_model)`
         """
-        return self.bart_model.encoder(
+        return self.bart_model.get_encoder(
             input_ids=encoder_input_ids,
             attention_mask=encoder_attn_mask,
         ).last_hidden_state
@@ -68,9 +114,9 @@ class FineTunedBartForGeneration(nn.Module):
     def decode(
         self,
         decoder_input_ids: Tensor,
-        decoder_attn_mask: Tensor,
-        encoder_output: Tensor,
-        encoder_attn_mask: Tensor,
+        decoder_attn_mask: Optional[Tensor] = None,
+        encoder_output: Optional[Tensor] = None,
+        encoder_attn_mask: Optional[Tensor] = None,
     ) -> Tensor:
         """
         Args:
@@ -81,7 +127,7 @@ class FineTunedBartForGeneration(nn.Module):
         Returns:
             Tensor: `(batch_size, seq_length, d_model)`
         """
-        return self.bart_model.decoder(
+        return self.bart_model.get_decoder(
             input_ids=decoder_input_ids,
             attention_mask=decoder_attn_mask,
             encoder_hidden_states=encoder_output,
@@ -99,9 +145,9 @@ class FineTunedBartForGeneration(nn.Module):
 
 
 def build_bart_model(
-    model_path: str,
-    config: Optional[BartConfig | PretrainedConfig] = None,
+    model_args: ModelArguments,
+    config: Optional[PretrainedConfig] = None,
 ) -> FineTunedBartForGeneration:
-    bart_model = FineTunedBartForGeneration(model_path, config=config)
+    bart_model = FineTunedBartForGeneration(model_args=model_args, config=config)
 
     return bart_model

@@ -2,11 +2,10 @@ import os
 import torch
 import torch.nn as nn
 
-from datetime import datetime
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 
-from bart.model import build_bart_model
+from bart.model import ModelArguments, build_bart_model
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
 from .trainer import Trainer
@@ -111,8 +110,11 @@ def train(config: dict) -> None:
 
     if model_filename is None:
         print_once(config, "Starting training model from scratch")
-        model_path = config["model_name_or_path"]
-        bart_model = build_bart_model(model_path)
+        model_args = ModelArguments(
+            model_name_or_path=config["model_name_or_path"],
+            config_name_or_path=config["model_name_or_path"],
+        )
+        bart_model = build_bart_model(model_args=model_args)
         bart_model_config = bart_model.get_config()
         bart_model.to(device=device)
     else:
@@ -132,8 +134,8 @@ def train(config: dict) -> None:
                 raise ValueError(f"Missing key {key} in checkpoint states.")
 
         bart_model_config = checkpoint_states["config"]
-        model_path = bart_model_config._name_or_path
-        bart_model = build_bart_model(model_path, config=bart_model_config)
+        model_args = ModelArguments(model_name_or_path=bart_model_config._name_or_path)
+        bart_model = build_bart_model(model_args=model_args, config=bart_model_config)
         bart_model.load_state_dict(checkpoint_states["model_state_dict"])
         bart_model.to(device=device)
 
