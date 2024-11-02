@@ -28,9 +28,9 @@ def get_weights_file_path(
 
 
 def get_list_weights_file_paths(config: dict) -> None | list[Path]:
-    model_dir = config["model_dir"]
+    checkpoint_dir = config["checkpoint_dir"]
     model_basename = config["model_basename"]
-    weights_files = list(Path(model_dir).glob(pattern=f"{model_basename}*.pt"))
+    weights_files = list(Path(checkpoint_dir).glob(pattern=f"{model_basename}*.pt"))
     if len(weights_files) == 0:
         return None
     return sorted(weights_files)

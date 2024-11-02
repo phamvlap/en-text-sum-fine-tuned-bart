@@ -95,8 +95,8 @@ def parse_args() -> dict[str, Any]:
         "--statistic_dir",
         type=str,
         required=False,
-        default="trained/statistics",
-        help="directory to save statistics (default: trained/statistics)",
+        default="statistics",
+        help="directory to save statistics (default: statistics)",
     )
     parser.set_defaults(
         use_stemmer=False,

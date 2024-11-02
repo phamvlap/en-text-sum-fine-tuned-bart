@@ -16,7 +16,7 @@ def parse_args() -> dict[str, Any]:
         "--checkpoint_dir",
         type=str,
         required=False,
-        default="trained/models",
+        default="checkpoints",
         help="directory to save checkpoint (default: checkpoints)",
     )
     parser.add_argument(
@@ -311,7 +311,7 @@ def parse_args() -> dict[str, Any]:
     )
     parser.add_argument(
         "--wandb_key",
-        type=int,
+        type=str,
         required=False,
         help="key of wandb log (default: None)",
     )

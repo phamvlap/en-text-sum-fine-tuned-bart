@@ -13,7 +13,7 @@ class TrainingArguments:
     device: torch.device
     seq_length: int
     num_epochs: int
-    model_dir: str
+    checkpoint_dir: str
     model_basename: str
     initial_epoch: int = 0
     initial_global_step: int = 0

@@ -18,7 +18,7 @@ from .utils.mix import (
     get_current_time,
     print_once,
 )
-from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_paths
+from .utils.path import get_weights_file_path, get_list_weights_file_paths
 from .utils.optimizer import get_optimizer, get_lr_scheduler
 from .utils.wb_logger import WandbLogger
 
@@ -50,13 +50,6 @@ def ddp_setup(config: dict) -> None:
 
 def train(config: dict) -> None:
     set_seed(seed=config["seed"])
-
-    make_dirs(
-        config=config,
-        dir_names=[
-            "model_dir",
-        ],
-    )
 
     device = torch.device(config["device"])
     if is_torch_cuda_available():
@@ -102,7 +95,7 @@ def train(config: dict) -> None:
             model_filename = list_weights_file_paths[-1]
     elif config["preload"] is not None:
         model_filename = get_weights_file_path(
-            model_basedir=config["model_dir"],
+            model_basedir=config["checkpoint_dir"],
             model_basename=config["model_basename"],
             epoch=config["preload"],
         )
@@ -182,7 +175,7 @@ def train(config: dict) -> None:
         initial_epoch=initial_epoch,
         initial_global_step=initial_global_step,
         num_epochs=config["epochs"],
-        model_dir=config["model_dir"],
+        checkpoint_dir=config["checkpoint_dir"],
         model_basename=config["model_basename"],
         eval_every_n_steps=config["eval_every_n_steps"],
         save_every_n_steps=config["save_every_n_steps"],

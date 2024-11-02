@@ -83,6 +83,7 @@ class Trainer:
                 name="training_loss",
                 device=self.args.device,
             )
+        make_dir(dir_path=self.args.checkpoint_dir)
 
     def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader) -> None:
         # Set model to train mode
@@ -276,7 +277,7 @@ class Trainer:
             checked_metric=self.args.checked_metric,
             greater_checking=self.args.greater_checking,
             best_metric_value=self.best_score_value,
-            output_dir=self.args.model_dir,
+            output_dir=self.args.checkpoint_dir,
             checkpoint_prefix=self.args.model_basename,
             step=step,
         )
@@ -312,9 +313,9 @@ class Trainer:
             self.training_loss.reset()
 
     def _save_checkpoint(self, global_step: int, epoch: int, step: int) -> None:
-        make_dir(dir_path=self.args.model_dir)
+        make_dir(dir_path=self.args.checkpoint_dir)
         model_filepath = str(
-            Path(self.args.model_dir) / f"{self.args.model_basename}_{step}.pt"
+            Path(self.args.checkpoint_dir) / f"{self.args.model_basename}_{step}.pt"
         )
 
         checkpoint_states = {
@@ -338,7 +339,7 @@ class Trainer:
 
         # Get all checkpoints and sort them by ascending order
         checkpoint_sorted = sorted_checkpoints(
-            output_dir=self.args.model_dir,
+            output_dir=self.args.checkpoint_dir,
             checkpoint_prefix=self.args.model_basename,
             best_checkpoint=self.best_checkpoint,
         )
