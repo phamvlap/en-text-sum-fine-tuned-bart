@@ -7,7 +7,9 @@ import torch.nn as nn
 from pathlib import Path
 from datetime import datetime
 from pytz import timezone
+from typing import Any
 
+from bart.constants import SETTING_CONFIG_FILE
 from .path import make_dir
 
 
@@ -47,7 +49,10 @@ def count_parameters(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def load_config(config_path: str) -> dict:
+def load_config(config_path: str) -> dict[str, Any]:
+    if not Path(config_path).exists():
+        raise FileNotFoundError(f"Config file {config_path} not found.")
+
     with open(config_path, "r") as file:
         config = yaml.safe_load(file)
 
@@ -92,3 +97,12 @@ def print_once(config: dict, text: str) -> None:
             print(text)
     else:
         print(text)
+
+
+def update_setting_config(new_config: dict[str, Any]) -> dict[str, Any]:
+    config = load_config(SETTING_CONFIG_FILE)
+
+    config = {**config, **new_config}
+    write_to_yaml(config, SETTING_CONFIG_FILE)
+
+    return config
