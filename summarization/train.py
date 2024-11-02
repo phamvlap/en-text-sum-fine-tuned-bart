@@ -19,8 +19,7 @@ from .utils.mix import (
     print_once,
 )
 from .utils.path import make_dirs, get_weights_file_path, get_list_weights_file_paths
-from .utils.optimizer import get_optimizer
-from .utils.lr_scheduler import get_lr_scheduler
+from .utils.optimizer import get_optimizer, get_lr_scheduler
 from .utils.wb_logger import WandbLogger
 
 
