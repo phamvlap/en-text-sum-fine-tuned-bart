@@ -1,3 +1,5 @@
+import os
+import shutil
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,6 +12,8 @@ from transformers import BartTokenizer
 from tqdm import tqdm
 from typing import Optional, Union
 from pathlib import Path
+from dotenv import load_dotenv
+from huggingface_hub import HfApi, login
 
 from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken
@@ -25,8 +29,13 @@ from .trainer_utils import (
 )
 from .utils.meters import AverageMeter
 
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
+
+HUGGINGFACE_BASE_URL = "https://huggingface.co"
+REPO_NAME = "en-text-sum-fine-tuned-bart"
 
 
 class Trainer:
@@ -56,6 +65,8 @@ class Trainer:
         self.best_score_value = (
             float("-inf") if self.args.greater_checking else float("inf")
         )
+        self.hf_user = os.environ.get("HUGGINGFACE_USERNAME", None)
+        self.hf_token = os.environ.get("HUGGINGFACE_TOKEN", None)
 
         # Automatic Mixed Precision
         # GradScaler: scales the loss and optimizer step
@@ -322,6 +333,9 @@ class Trainer:
 
         torch.save(checkpoint_states, model_filepath)
 
+        if self._is_local_main_process():
+            self._push_to_hub(step=step)
+
         # Get all checkpoints and sort them by ascending order
         checkpoint_sorted = sorted_checkpoints(
             output_dir=self.args.model_dir,
@@ -334,6 +348,64 @@ class Trainer:
             checkpoints=checkpoint_sorted,
             max_saved_total=self.args.max_saved_checkpoints,
         )
+
+    def _push_to_hub(self, step: int) -> None:
+        if self.hf_user is None or self.hf_token is None:
+            logger.warning(
+                "Hugging Face username or token is not provided, skipped push to hub"
+            )
+            return
+        if not self._is_local_main_process():
+            return
+
+        login(token=self.hf_token)
+
+        print("Pushing to hub...")
+        hf_api = HfApi()
+
+        hub_repo_id = f"{self.hf_user}/{REPO_NAME}"
+        repo_url = f"{HUGGINGFACE_BASE_URL}/{self.hf_user}/{REPO_NAME}"
+
+        # Create repo if it not exists
+        if not hf_api.repo_exists(repo_id=hub_repo_id):
+            repo_url = hf_api.create_repo(
+                token=self.hf_token,
+                repo_id=REPO_NAME,
+                repo_type="model",
+                private=True,
+            )
+
+        # Save config and tokenizer files
+        tmp_dir = "archieved_stuff"
+
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir)
+
+        shutil.copytree("tokenizer-bart", tmp_dir)
+        shutil.copy2("config/config.yaml", tmp_dir)
+
+        # Upload model to hub
+        if self.best_checkpoint is not None:
+            checkpoint_name = self.best_checkpoint.split("/")[-1]
+            hf_api.upload_file(
+                path_or_fileobj=self.best_checkpoint,
+                repo_id=hub_repo_id,
+                commit_message=f"Upload model checkpoint at step {step}",
+                path_in_repo=f"models/{checkpoint_name}",
+            )
+
+        # Upload config and tokenizer files to hub
+        if step == self.args.save_every_n_steps:
+            hf_api.upload_folder(
+                repo_id=hub_repo_id,
+                folder_path=tmp_dir,
+                commit_message="Add config and tokenizer files",
+            )
+
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir)
+
+        print(f"Pushed to {repo_url}")
 
     @staticmethod
     def get_actual_model(
