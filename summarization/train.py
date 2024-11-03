@@ -124,7 +124,8 @@ def train(config: dict) -> None:
                 raise ValueError(f"Missing key {key} in checkpoint states.")
 
         bart_model_config = checkpoint_states["config"]
-        model_args = ModelArguments(model_name_or_path=bart_model_config._name_or_path)
+        model_name = f"facebook/{bart_model_config._name_or_path}"
+        model_args = ModelArguments(model_name_or_path=model_name)
         bart_model = build_bart_model(model_args=model_args, config=bart_model_config)
         bart_model.load_state_dict(checkpoint_states["model_state_dict"])
         bart_model.to(device=device)
