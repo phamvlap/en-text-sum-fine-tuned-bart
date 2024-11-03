@@ -9,25 +9,31 @@ from typing import Literal, Callable, Optional, List, Tuple, Sequence
 from tqdm import tqdm
 
 from bart.model import FineTunedBartForGeneration
-from ..summarization_dataset import SummarizationDataset
 from bart.constants import RougeKey
 from .eval import greedy_search_decode, beam_search_decode
+from ..summarization_dataset import SummarizationDataset
 
 
 class RougeScorer:
     def __init__(
         self,
-        rouge_keys: Optional[List[str] | Tuple[str]] = None,
         use_stemmer: bool = True,
+        rouge_keys: Optional[List[str] | Tuple[str]] = None,
         normalizer_function: Optional[Callable] = None,
         tokenizer_function: Optional[Callable] = None,
-        accumulate: Literal["best", "avg"] = "best",
+        accumulate: Literal["best", "avg"] = "avg",
     ) -> None:
         all_rouge_keys = [
             RougeKey.ROUGE_1,
             RougeKey.ROUGE_2,
             RougeKey.ROUGE_L,
         ]
+        if rouge_keys is not None:
+            for key in rouge_keys:
+                if key not in all_rouge_keys:
+                    raise ValueError(
+                        f"Key {key} not found in {', '.join(all_rouge_keys)}"
+                    )
         rouge_keys = rouge_keys if rouge_keys is not None else all_rouge_keys
 
         self.rouge_scorer = ROUGEScore(
@@ -41,9 +47,9 @@ class RougeScorer:
     def compute(
         self,
         preds: list[str] | str,
-        targets: list[str] | str,
+        target: list[str] | str,
     ) -> dict[str, Tensor]:
-        return self.rouge_scorer(preds, targets)
+        return self.rouge_scorer(preds, target)
 
 
 class BertScorer:
@@ -86,10 +92,9 @@ def format_rouge_score(pure_rouge_score: dict[str, Tensor]) -> dict[str, float]:
         rouge_type = key.split("_")[0].replace("rouge", "")
         rouge_key = f"ROUGE@{rouge_type}"
         if rouge_key not in rouge_score.keys():
-            rouge_score[rouge_key] = round(
-                pure_rouge_score[f"rouge{rouge_type}_fmeasure"].item() * 100,
-                2,
-            )
+            rouge_score[rouge_key] = pure_rouge_score[
+                f"rouge{rouge_type}_fmeasure"
+            ].item()
     return rouge_score
 
 
@@ -143,8 +148,8 @@ def compute_rouge_bert_score(
     ), "local_rank and rank must be not None if use DDP"
 
     rouge_scorer = RougeScorer(
-        rouge_keys=rouge_keys,
         use_stemmer=use_stemmer,
+        rouge_keys=rouge_keys,
         normalizer_function=normalizer_function,
         tokenizer_function=tokenizer.tokenize,
         accumulate=accumulate,
@@ -195,6 +200,8 @@ def compute_rouge_bert_score(
 
         encoder_input = data["encoder_input"]
         labels = data["labels"]
+        cand_list: list[Tensor] = []
+        cand_text_list: list[str] = []
 
         if beam_size is not None and beam_size > 1:
             cands = beam_search_decode(
@@ -208,6 +215,7 @@ def compute_rouge_bert_score(
                 use_ddp=use_ddp,
                 local_rank=local_rank,
             )
+            cand_list = cands
             pred_tokens = cands[0]
         else:
             pred_tokens = greedy_search_decode(
@@ -232,8 +240,15 @@ def compute_rouge_bert_score(
         pred_text_list.append(pred_text)
         target_text_list.append(tgt_text)
 
+        if len(cand_list) > 0:
+            for cand in cand_list:
+                if isinstance(cand, Tensor):
+                    cand = cand.detach().cpu().numpy()
+                cand_text = tokenizer.decode(cand, skip_special_tokens=True)
+                cand_text_list.append(cand_text)
+
         if log_examples and idx % logging_steps == 0:
-            rouge_score = rouge_scorer.compute(preds=pred_text, targets=tgt_text)
+            rouge_score = rouge_scorer.compute(preds=pred_text, target=tgt_text)
             bert_score = None
             if bert_scorer is not None:
                 bert_score = bert_scorer.compute(preds=pred_text, target=tgt_text)
@@ -241,7 +256,12 @@ def compute_rouge_bert_score(
             print(f"EXAMPLE: {idx}")
             print(f"SOURCE TEXT: {src_text}")
             print(f"TARGET TEXT: {tgt_text}")
-            print(f"PREDICTED TEXT: {pred_text}")
+            if len(cand_text_list) > 0:
+                print("CANDIDATE TEXTS:")
+                for i, cand_text in enumerate(cand_text_list):
+                    print(f"CANDIDATE TEXT {i}: {cand_text}")
+            else:
+                print(f"PREDICTED TEXT: {pred_text}")
 
             rouge_score = format_rouge_score(rouge_score)
             if bert_score is not None:
@@ -255,7 +275,7 @@ def compute_rouge_bert_score(
                 for key, value in bert_score.items():
                     print(f"{key}: {value}")
 
-    rouge_score = rouge_scorer.compute(preds=pred_text_list, targets=target_text_list)
+    rouge_score = rouge_scorer.compute(preds=pred_text_list, target=target_text_list)
     rouge_score = format_rouge_score(rouge_score)
     bert_score = None
     if bert_scorer is not None:
