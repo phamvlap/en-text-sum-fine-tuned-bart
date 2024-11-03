@@ -9,7 +9,7 @@ from bart.model import ModelArguments, build_bart_model
 from bart.constants import SpecialToken
 from .summarization_dataset import get_dataloader
 from .trainer import Trainer
-from .trainer_utils import TrainingArguments
+from .trainer_utils import TrainingArguments, get_last_checkpoint
 from .utils.tokenizer import load_tokenizer
 from .utils.seed import set_seed
 from .utils.mix import (
@@ -18,9 +18,10 @@ from .utils.mix import (
     get_current_time,
     print_once,
 )
-from .utils.path import get_weights_file_path, get_list_weights_file_paths
 from .utils.optimizer import get_optimizer, get_lr_scheduler
 from .utils.wb_logger import WandbLogger
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 def ddp_setup(config: dict) -> None:
@@ -83,24 +84,21 @@ def train(config: dict) -> None:
         config=config,
     )
 
+    config["f16_precision"] = config["f16_precision"] and is_torch_cuda_available()
+
     initial_epoch = 0
     initial_global_step = 0
-    model_filename = None
+    checkpoint_path = None
     checkpoint_states = None
     scaler_state_dict = None
 
-    if config["preload"] == "latest":
-        list_weights_file_paths = get_list_weights_file_paths(config=config)
-        if list_weights_file_paths is not None:
-            model_filename = list_weights_file_paths[-1]
-    elif config["preload"] is not None:
-        model_filename = get_weights_file_path(
-            model_basedir=config["checkpoint_dir"],
-            model_basename=config["model_basename"],
-            epoch=config["preload"],
+    if config["resume_from_checkpoint"]:
+        checkpoint_path = get_last_checkpoint(
+            output_dir=config["checkpoint_dir"],
+            checkpoint_prefix=config["model_basename"],
         )
 
-    if model_filename is None:
+    if checkpoint_path is None:
         print_once(config, "Starting training model from scratch")
         model_args = ModelArguments(
             model_name_or_path=config["model_name_or_path"],
@@ -110,9 +108,9 @@ def train(config: dict) -> None:
         bart_model_config = bart_model.get_config()
         bart_model.to(device=device)
     else:
-        print_once(config, "Loading model from {}".format(model_filename))
+        print_once(config, f"Loading model from checkpoint {checkpoint_path}")
 
-        checkpoint_states = torch.load(model_filename, map_location=device)
+        checkpoint_states = torch.load(checkpoint_path, map_location=device)
 
         required_keys = [
             "model_state_dict",

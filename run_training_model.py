@@ -290,6 +290,12 @@ def parse_args() -> dict[str, Any]:
         help="top k result returned for decoding (default: 2)",
     )
     parser.add_argument(
+        "--resume_from_checkpoint",
+        action="store_true",
+        dest="resume_from_checkpoint",
+        help="resume training from checkpoint (default: Fasle)",
+    )
+    parser.add_argument(
         "--logging_wandb",
         action="store_true",
         dest="is_logging_wandb",
@@ -326,6 +332,7 @@ def parse_args() -> dict[str, Any]:
         eval_bert_score=False,
         rescale=False,
         truncation=False,
+        resume_from_checkpoint=False,
         log_examples=False,
         is_logging_wandb=False,
     )

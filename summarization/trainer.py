@@ -83,6 +83,7 @@ class Trainer:
                 name="training_loss",
                 device=self.args.device,
             )
+
         make_dir(dir_path=self.args.checkpoint_dir)
 
     def train(self, train_dataloader: DataLoader, val_dataloader: DataLoader) -> None:
@@ -162,10 +163,11 @@ class Trainer:
 
                     # Compute loss
                     loss = self.criterion(
-                        logits.view(-1, logits.size(-1)), labels.view(-1)
+                        logits.view(-1, logits.size(-1)),
+                        labels.view(-1),
                     )
 
-                if is_torch_cuda_available() and self.scaler is not None:
+                if self.scaler is not None:
                     # Backpropagation
                     self.scaler.scale(loss).backward()
                     # Clip gradients norm
@@ -298,10 +300,10 @@ class Trainer:
 
         logs: dict[str, float] = {}
         if self.training_loss is not None:
-            logs["loss"] = self.training_loss.average
+            logs["acc_loss"] = self.training_loss.average
 
         for key, value in valid_result.items():
-            logs[VALID_PREFIX_KEY + key] = value
+            logs[VALID_PREFIX_KEY + f"acc_{key}"] = value
 
         for key, value in valid_scores.items():
             logs[VALID_PREFIX_KEY + key] = value
@@ -313,10 +315,7 @@ class Trainer:
             self.training_loss.reset()
 
     def _save_checkpoint(self, global_step: int, epoch: int, step: int) -> None:
-        make_dir(dir_path=self.args.checkpoint_dir)
-        model_filepath = str(
-            Path(self.args.checkpoint_dir) / f"{self.args.model_basename}_{step}.pt"
-        )
+        model_filepath = self._get_checkpoint_path(step=step)
 
         checkpoint_states = {
             "epoch": epoch,
@@ -421,3 +420,8 @@ class Trainer:
         if self.args.use_ddp:
             return self.args.local_rank == 0
         return True
+
+    def _get_checkpoint_path(self, step: int) -> str:
+        return str(
+            Path(self.args.checkpoint_dir) / f"{self.args.model_basename}_{step}.pt"
+        )

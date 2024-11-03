@@ -106,7 +106,7 @@ def determine_best_metric_value(
 
     if checked_metric not in metric_scores:
         raise ValueError(
-            f"{checked_metric} not found in metric_scores, keys availability {', '.join(list(metric_scores.keys()))}"
+            f"{checked_metric} not found in metric_scoes, keys availability {', '.join(list(metric_scores.keys()))}"
         )
 
     is_new_best_metric = False
@@ -126,3 +126,11 @@ def determine_best_metric_value(
         best_checkpoint_path = str(Path(output_dir) / f"{checkpoint_prefix}_{step}.pt")
 
     return new_best_metric_value, best_checkpoint_path
+
+
+def get_last_checkpoint(output_dir: str, checkpoint_prefix: str) -> Optional[str]:
+    checkpoints = sorted_checkpoints(
+        output_dir=output_dir,
+        checkpoint_prefix=checkpoint_prefix,
+    )
+    return checkpoints[-1] if len(checkpoints) > 0 else None
