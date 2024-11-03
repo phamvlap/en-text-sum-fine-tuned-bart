@@ -10,7 +10,10 @@ from pytz import timezone
 from typing import Any
 
 from bart.constants import SETTING_CONFIG_FILE
-from .path import make_dir
+
+
+def make_dir(dir_path: str) -> None:
+    Path(dir_path).mkdir(parents=True, exist_ok=True)
 
 
 def write_to_csv(

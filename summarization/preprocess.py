@@ -14,8 +14,8 @@ from .utils.dataset import (
     remove_all_invalid_text,
     remove_rows_by_invalid_seq_length,
 )
-from .utils.path import make_dir
 from .utils.seed import set_seed
+from .utils.mix import make_dir
 
 
 def load_dataset(path: str) -> pd.DataFrame:

@@ -2,7 +2,7 @@ import wandb
 
 from typing import Optional
 
-from .path import make_dir
+from .mix import make_dir
 
 DEFAULT_LOG_DIR = "wandb-logs"
 VALID_PREFIX_KEY = "eval_"
