@@ -57,6 +57,7 @@ def load_config(config_path: str) -> dict[str, Any]:
         config = yaml.safe_load(file)
 
     config["eps"] = float(config["eps"])
+    config["betas"] = tuple(config["betas"])
     config["eta_min"] = float(config["eta_min"])
     config["device"] = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -67,10 +68,14 @@ def is_torch_cuda_available() -> bool:
     return torch.cuda.is_available()
 
 
-def write_to_yaml(data: dict, file_path: str | Path) -> None:
+def write_to_yaml(data: dict[str, Any], file_path: str | Path) -> None:
     file_path = str(file_path)
     parent_dir = file_path.rsplit("/", 1)[0]
     make_dir(parent_dir)
+
+    for key in ["special_tokens", "betas", "rouge_keys"]:
+        if key in data:
+            data[key] = list(data[key])
 
     with open(file_path, "w") as file:
         yaml.dump(data, file, default_flow_style=False)

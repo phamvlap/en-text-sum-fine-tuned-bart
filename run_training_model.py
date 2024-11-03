@@ -332,7 +332,7 @@ def parse_args() -> dict[str, Any]:
 
     args = parser.parse_args()
     args = vars(args)
-    args["betas"] = tuple(map(float, args["betas"].split(",")))
+    args["betas"] = list(map(float, args["betas"].split(",")))
 
     return args
 
