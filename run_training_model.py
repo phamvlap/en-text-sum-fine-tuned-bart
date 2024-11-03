@@ -321,6 +321,19 @@ def parse_args() -> dict[str, Any]:
         required=False,
         help="key of wandb log (default: None)",
     )
+    parser.add_argument(
+        "--push_to_hub",
+        action="store_true",
+        dest="push_to_hub",
+        help="push model to huggingface hub (default: False)",
+    )
+    parser.add_argument(
+        "--hub_repo_name",
+        type=str,
+        required=False,
+        default="en-text-sum-fine-tuned-bart",
+        help="name of hub repository (default: en-text-sum-fine-tuned-bart)",
+    )
 
     parser.set_defaults(
         attach_text=False,
@@ -335,6 +348,7 @@ def parse_args() -> dict[str, Any]:
         resume_from_checkpoint=False,
         log_examples=False,
         is_logging_wandb=False,
+        push_to_hub=False,
     )
 
     args = parser.parse_args()

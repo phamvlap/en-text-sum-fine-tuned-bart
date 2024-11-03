@@ -47,6 +47,8 @@ class TrainingArguments:
     checked_metric: str = "loss"
     max_saved_checkpoints: int = 2
     show_eval_progress: bool = False
+    push_to_hub: bool = True
+    hub_repo_name: str = "en-text-sum-fine-tuned-bart"
 
 
 def has_length(dataset: Dataset) -> bool:

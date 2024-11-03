@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from huggingface_hub import HfApi, login
 
 from bart.model import FineTunedBartForGeneration
-from bart.constants import SpecialToken
+from bart.constants import SpecialToken, SETTING_CONFIG_FILE
 from .utils.eval import evaluate
 from .utils.metrics import compute_rouge_bert_score
 from .utils.mix import is_torch_cuda_available, make_dir
@@ -35,7 +35,6 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
 HUGGINGFACE_BASE_URL = "https://huggingface.co"
-REPO_NAME = "en-text-sum-fine-tuned-bart"
 
 
 class Trainer:
@@ -333,7 +332,7 @@ class Trainer:
 
         torch.save(checkpoint_states, model_filepath)
 
-        if self._is_local_main_process():
+        if self.args.push_to_hub and self._is_local_main_process():
             self._push_to_hub(step=step)
 
         # Get all checkpoints and sort them by ascending order
@@ -355,22 +354,20 @@ class Trainer:
                 "Hugging Face username or token is not provided, skipped push to hub"
             )
             return
-        if not self._is_local_main_process():
-            return
 
         login(token=self.hf_token)
 
         print("Pushing to hub...")
         hf_api = HfApi()
 
-        hub_repo_id = f"{self.hf_user}/{REPO_NAME}"
-        repo_url = f"{HUGGINGFACE_BASE_URL}/{self.hf_user}/{REPO_NAME}"
+        hub_repo_id = f"{self.hf_user}/{self.args.hub_repo_name}"
+        repo_url = f"{HUGGINGFACE_BASE_URL}/{self.hf_user}/{self.args.hub_repo_name}"
 
         # Create repo if it not exists
         if not hf_api.repo_exists(repo_id=hub_repo_id):
             repo_url = hf_api.create_repo(
                 token=self.hf_token,
-                repo_id=REPO_NAME,
+                repo_id=self.args.hub_repo_name,
                 repo_type="model",
                 private=True,
             )
@@ -382,7 +379,7 @@ class Trainer:
             shutil.rmtree(tmp_dir)
 
         shutil.copytree("tokenizer-bart", tmp_dir)
-        shutil.copy2("config/config.yaml", tmp_dir)
+        shutil.copy2(SETTING_CONFIG_FILE, tmp_dir)
 
         # Upload model to hub
         if self.best_checkpoint is not None:

@@ -139,3 +139,7 @@ is_logging_wandb: True
 wandb_project_name: en-text-sum-fine-tuned-bart
 wandb_log_dir: wandb-logs
 wandb_key: wandb-key
+
+# Push to hub
+push_to_hub: True
+hub_repo_name: en-text-sum-fine-tuned-bart
