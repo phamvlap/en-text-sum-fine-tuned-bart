@@ -8,7 +8,7 @@ from transformers import BartTokenizer
 from tokenizers import ByteLevelBPETokenizer
 
 from bart.constants import TokenizerType, SpecialToken
-from .mix import get_constants_from_module, make_dir
+from .mix import get_constants_from_module, make_dir, ensure_exist_path
 
 
 class CustomBartTokenizer:
@@ -69,7 +69,7 @@ class CustomBartTokenizer:
 
 
 def load_tokenizer(bart_tokenizer_dir: str) -> BartTokenizer:
-    if not Path(bart_tokenizer_dir).exists():
+    if not ensure_exist_path(bart_tokenizer_dir):
         raise ValueError(f"Tokenizer path {bart_tokenizer_dir} not found.")
 
     bart_tokenizer = BartTokenizer.from_pretrained(str(bart_tokenizer_dir))

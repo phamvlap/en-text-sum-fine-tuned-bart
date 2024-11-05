@@ -190,7 +190,7 @@ def get_dataloader(
         collate_fn=lambda batch: collate_fn(batch=batch, tokenizer=tokenizer),
         pin_memory=True,
         sampler=sampler,
-        num_workers=config["num_workers"],
+        num_workers=config["num_workers"] if config["num_workers"] > 0 else 0,
     )
 
     return dataloader

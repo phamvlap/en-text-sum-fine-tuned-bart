@@ -18,7 +18,7 @@ def make_dir(dir_path: str) -> None:
 
 def write_to_csv(
     columns: list[str],
-    data: list[list],
+    data: list[list[int | float | str]],
     file_path: str | Path,
 ) -> pd.DataFrame:
     obj = {}
@@ -36,7 +36,7 @@ def write_to_csv(
     return df
 
 
-def get_constants_from_module(module: object) -> dict:
+def get_constants_from_module(module: object) -> dict[str, Any]:
     constants = vars(module)
     super_keys = ["__module__", "__init__", "__dict__", "__weakref__", "__doc__"]
 
@@ -53,7 +53,7 @@ def count_parameters(model: nn.Module) -> int:
 
 
 def load_config(config_path: str) -> dict[str, Any]:
-    if not Path(config_path).exists():
+    if not ensure_exist_path(config_path):
         raise FileNotFoundError(f"Config file {config_path} not found.")
 
     with open(config_path, "r") as file:
@@ -114,3 +114,10 @@ def update_setting_config(new_config: dict[str, Any]) -> dict[str, Any]:
     write_to_yaml(config, SETTING_CONFIG_FILE)
 
     return config
+
+
+def ensure_exist_path(path: str | Path) -> bool:
+    path = str(path)
+    if not Path(path).exists():
+        return False
+    return True

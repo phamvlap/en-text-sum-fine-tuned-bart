@@ -125,7 +125,11 @@ def determine_best_metric_value(
 
     if is_new_best_metric:
         new_best_metric_value = metric_scores[checked_metric]
-        best_checkpoint_path = str(Path(output_dir) / f"{checkpoint_prefix}_{step}.pt")
+        best_checkpoint_path = get_checkpoint_path(
+            checkpoint_dir=output_dir,
+            model_basename=checkpoint_prefix,
+            step=step,
+        )
 
     return new_best_metric_value, best_checkpoint_path
 
@@ -136,3 +140,7 @@ def get_last_checkpoint(output_dir: str, checkpoint_prefix: str) -> Optional[str
         checkpoint_prefix=checkpoint_prefix,
     )
     return checkpoints[-1] if len(checkpoints) > 0 else None
+
+
+def get_checkpoint_path(checkpoint_dir: str, model_basename: str, step: int) -> str:
+    return str(Path(checkpoint_dir) / f"{model_basename}_{step}.pt")

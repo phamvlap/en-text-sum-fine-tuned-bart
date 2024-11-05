@@ -19,13 +19,14 @@ from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken, SETTING_CONFIG_FILE
 from .utils.eval import evaluate
 from .utils.metrics import compute_rouge_bert_score
-from .utils.mix import is_torch_cuda_available, make_dir
+from .utils.mix import is_torch_cuda_available, make_dir, ensure_exist_path
 from .utils.wb_logger import WandbLogger, VALID_PREFIX_KEY
 from .trainer_utils import (
     TrainingArguments,
     determine_best_metric_value,
     sorted_checkpoints,
     rotate_checkpoints,
+    get_checkpoint_path,
 )
 from .utils.meters import AverageMeter
 
@@ -382,17 +383,18 @@ class Trainer:
         shutil.copy2(SETTING_CONFIG_FILE, tmp_dir)
 
         # Upload model to hub
-        if self.best_checkpoint is not None:
-            checkpoint_name = self.best_checkpoint.split("/")[-1]
+        checkpoint_path = self._get_checkpoint_path(step=step)
+        if self.best_checkpoint is not None and ensure_exist_path(checkpoint_path):
+            checkpoint_name = checkpoint_path.split("/")[-1]
             hf_api.upload_file(
-                path_or_fileobj=self.best_checkpoint,
+                path_or_fileobj=checkpoint_path,
                 repo_id=hub_repo_id,
                 commit_message=f"Upload model checkpoint at step {step}",
                 path_in_repo=f"models/{checkpoint_name}",
             )
 
         # Upload config and tokenizer files to hub
-        if step == self.args.save_every_n_steps:
+        if step == self.args.save_every_n_steps and ensure_exist_path(tmp_dir):
             hf_api.upload_folder(
                 repo_id=hub_repo_id,
                 folder_path=tmp_dir,
@@ -419,6 +421,8 @@ class Trainer:
         return True
 
     def _get_checkpoint_path(self, step: int) -> str:
-        return str(
-            Path(self.args.checkpoint_dir) / f"{self.args.model_basename}_{step}.pt"
+        return get_checkpoint_path(
+            checkpoint_dir=self.args.checkpoint_dir,
+            model_basename=self.args.model_basename,
+            step=step,
         )

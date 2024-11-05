@@ -1,6 +1,5 @@
 import pandas as pd
 
-from pathlib import Path
 from typing import Optional
 from datasets import load_dataset as load_dataset_remote, load_dataset_builder
 
@@ -15,12 +14,12 @@ from .utils.dataset import (
     remove_rows_by_invalid_seq_length,
 )
 from .utils.seed import set_seed
-from .utils.mix import make_dir
+from .utils.mix import make_dir, ensure_exist_path
 
 
 def load_dataset(path: str) -> pd.DataFrame:
     if path.endswith(".csv"):
-        if not Path(path).exists():
+        if not ensure_exist_path(path):
             raise FileNotFoundError(f"Dataset file {path} not found")
         return pd.read_csv(path)
 

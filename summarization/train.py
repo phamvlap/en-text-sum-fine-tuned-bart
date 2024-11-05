@@ -99,10 +99,11 @@ def train(config: dict) -> None:
         )
 
     if checkpoint_path is None:
-        print_once(config, "Starting training model from scratch")
+        model_name_or_path = config["model_name_or_path"]
+        print_once(config, f"Training model from pre-trained {model_name_or_path}")
         model_args = ModelArguments(
-            model_name_or_path=config["model_name_or_path"],
-            config_name_or_path=config["model_name_or_path"],
+            model_name_or_path=model_name_or_path,
+            config_name_or_path=model_name_or_path,
         )
         bart_model = build_bart_model(model_args=model_args)
         bart_model_config = bart_model.get_config()
