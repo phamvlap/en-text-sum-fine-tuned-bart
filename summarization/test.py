@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 
-from bart.model import build_bart_model, FineTunedBartForGeneration
+from bart.model import build_bart_model, FineTunedBartForGeneration, ModelArguments
 from bart.constants import SpecialToken
+from .trainer_utils import get_last_checkpoint
 from .summarization_dataset import get_dataloader
 from .utils.seed import set_seed
-from .utils.mix import write_to_csv
+from .utils.mix import write_to_csv, make_dir
 from .utils.eval import evaluate
-from .utils.path import get_list_weights_file_paths
 from .utils.tokenizer import load_tokenizer
 from .utils.metrics import compute_rouge_bert_score
 
@@ -21,7 +21,7 @@ def test(config: dict) -> None:
     print("Loading tokenizer...")
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
 
-    print("Getting dataloaders...")
+    print("Getting dataloader...")
     test_dataloader = get_dataloader(
         tokenizer=tokenizer,
         split="test",
@@ -30,23 +30,31 @@ def test(config: dict) -> None:
         config=config,
     )
 
-    list_model_weight_files = get_list_weights_file_paths(config=config)
-    if list_model_weight_files is not None:
-        states = torch.load(list_model_weight_files[-1])
+    print("Building BART model...")
+    last_checkpoint = get_last_checkpoint(
+        output_dir=config["checkpoint_dir"],
+        checkpoint_prefix=config["model_basename"],
+    )
+    if last_checkpoint is not None:
+        checkpoint_states = torch.load(
+            last_checkpoint,
+            weights_only=True,
+            map_location=device,
+        )
         required_keys = ["model_state_dict", "config"]
         for key in required_keys:
-            if key not in states:
-                raise ValueError(f"Missing key {key} in model state dict")
+            if key not in checkpoint_states:
+                raise ValueError(f"Missing key {key} in checkpoint states")
     else:
-        raise ValueError("No model found.")
+        raise ValueError("No checkpoint found")
 
-    print("Building BART model...")
-    bart_config = states["config"]
+    bart_config = checkpoint_states["config"]
+    model_args = ModelArguments(model_name_or_path=config["model_name_or_path"])
     model: FineTunedBartForGeneration = build_bart_model(
-        config["model_name_or_path"],
+        model_args=model_args,
         config=bart_config,
     ).to(device=device)
-    model.load_state_dict(states["model_state_dict"], weights_only=True)
+    model.load_state_dict(checkpoint_states["model_state_dict"])
 
     loss_fn = nn.CrossEntropyLoss(
         ignore_index=tokenizer.convert_tokens_to_ids(SpecialToken.PAD),
@@ -54,13 +62,14 @@ def test(config: dict) -> None:
     ).to(device=device)
 
     print("Evaluating model...")
-    test_metric_tracker = evaluate(
+    eval_result = evaluate(
         model=model,
         val_dataloader=test_dataloader,
         tokenizer=tokenizer,
         criterion=loss_fn,
         device=device,
         use_ddp=False,
+        show_eval_progress=config["show_eval_progress"],
     )
     scores = compute_rouge_bert_score(
         model=model,
@@ -78,19 +87,19 @@ def test(config: dict) -> None:
         rouge_keys=config["rouge_keys"],
         accumulate=config["accumulate"],
         use_ddp=False,
+        max_steps=config["max_eval_steps"],
     )
 
-    metric_scores = test_metric_tracker.compute()
-
-    columns = list(metric_scores.keys()) + list(scores.keys())
-    data = [[value] for value in metric_scores.values()] + [
+    columns = list(eval_result.keys()) + list(scores.keys())
+    data = [[value] for value in eval_result.values()] + [
         [value] for value in scores.values()
     ]
 
+    make_dir(config["statistic_dir"])
     df = write_to_csv(
         columns=columns,
         data=data,
-        file_path=f"{config['statistic_dir']}/metric_scores.csv",
+        file_path=f"{config['statistic_dir']}/test_result.csv",
     )
     print("TEST METRIC SCORES:")
     print(df)

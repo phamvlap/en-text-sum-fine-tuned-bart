@@ -103,6 +103,7 @@ def parse_args() -> dict[str, Any]:
         eval_bert_score=False,
         rescale=False,
         truncation=False,
+        log_examples=False,
     )
 
     args = parser.parse_args()
