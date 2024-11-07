@@ -76,13 +76,13 @@ class FineTunedBartForGeneration(nn.Module):
     ) -> Tensor:
         """
         Args:
-            encoder_input_ids: encoder input tensor, shape `(batch_size, seq_length)`
-            encoder_attn_mask: encoder attention mask tensor, shape `(batch_size, seq_length)`
+            encoder_input_ids: encoder input tensor, shape `(batch_size, src_seq_length)`
+            encoder_attn_mask: encoder attention mask tensor, shape `(batch_size, src_seq_length)`
             decoder_input_ids: decoder input tensor, shape `(batch_size, tgt_seq_length)`
             decoder_attn_mask: decoder attention mask tensor, shape `(batch_size, tgt_seq_length)`
             **kwargs: additional arguments
         Returns:
-            Tensor: `(batch_size, seq_len, vocab_size)`
+            Tensor: shape `(batch_size, tgt_seq_length, vocab_size)`
         """
         output = self.bart_model(
             input_ids=encoder_input_ids,
@@ -101,10 +101,10 @@ class FineTunedBartForGeneration(nn.Module):
     ) -> Tensor:
         """
         Args:
-            encoder_input_ids: encoder input tensor, shape `(batch_size, seq_length)`
-            encoder_attn_mask: encoder attention mask tensor, shape `(batch_size, seq_length)`
+            encoder_input_ids: encoder input tensor, shape `(batch_size, src_seq_length)`
+            encoder_attn_mask: encoder attention mask tensor, shape `(batch_size, src_seq_length)`
         Returns:
-            Tensor: `(batch_size, seq_length, d_model)`
+            Tensor: shape `(batch_size, src_seq_length, d_model)`
         """
         return self.bart_model.get_encoder(
             input_ids=encoder_input_ids,
@@ -120,12 +120,12 @@ class FineTunedBartForGeneration(nn.Module):
     ) -> Tensor:
         """
         Args:
-            decoder_input_ids: decoder input tensor, shape `(batch_size, seq_length)`
-            decoder_attn_mask: decoder input tensor, shape `(batch_size, seq_length)`
-            encoder_output: encoder output tensor, shape `(batch_size, encoder_seq_length, d_model)`
-            encoder_attn_mask: encoder attention mask tensor, shape `(batch_size, encoder_seq_length)`
+            decoder_input_ids: decoder input tensor, shape `(batch_size, tgt_seq_length)`
+            decoder_attn_mask: decoder input tensor, shape `(batch_size, tgt_seq_length)`
+            encoder_output: encoder output tensor, shape `(batch_size, src_seq_length, d_model)`
+            encoder_attn_mask: encoder attention mask tensor, shape `(batch_size, src_seq_length)`
         Returns:
-            Tensor: `(batch_size, seq_length, d_model)`
+            Tensor: shape `(batch_size, tgt_seq_length, d_model)`
         """
         return self.bart_model.get_decoder(
             input_ids=decoder_input_ids,
@@ -137,9 +137,9 @@ class FineTunedBartForGeneration(nn.Module):
     def proj(self, x: Tensor) -> Tensor:
         """
         Args:
-            x: input tensor, shape `(batch_size, seq_length, d_model)`
+            x: input tensor, shape `(batch_size, tgt_seq_length, d_model)`
         Returns:
-            Tensor: output tensor, shape `(batch_size, seq_length, vocab_size)`
+            Tensor: output tensor, shape `(batch_size, tgt_seq_length, vocab_size)`
         """
         return self.linear_proj(x)
 

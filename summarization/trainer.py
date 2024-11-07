@@ -124,9 +124,9 @@ class Trainer:
                 )
 
             for batch in batch_iterator:
-                # encoder_input (batch_size, seq_length)
-                # decoder_input(batch_size, seq_length)
-                # labels (batch_size, seq_length)
+                # encoder_input (batch_size, src_seq_length)
+                # decoder_input(batch_size, tgt_seq_length)
+                # labels (batch_size, tgt_seq_length)
                 if self.args.use_ddp:
                     encoder_input = batch["encoder_input"].to(self.args.local_rank)
                     decoder_input = batch["decoder_input"].to(self.args.local_rank)
@@ -152,7 +152,7 @@ class Trainer:
                     dtype=torch.float16,
                     enabled=self.args.f16_precision and is_torch_cuda_available(),
                 ):
-                    # logits (batch_size, seq_length, vocab_size)
+                    # logits (batch_size, tgt_seq_length, vocab_size)
                     logits = self.model(
                         encoder_input_ids=encoder_input,
                         encoder_attn_mask=src_attention_mask,
@@ -243,7 +243,7 @@ class Trainer:
             model=self.model,
             dataset=val_dataloader.dataset,
             tokenizer=self.tokenizer,
-            seq_length=self.args.seq_length,
+            seq_length=self.args.tgt_seq_length,
             device=self.args.device,
             beam_size=self.args.beam_size,
             topk=self.args.topk,

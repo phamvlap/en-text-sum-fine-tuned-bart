@@ -75,7 +75,7 @@ def test(config: dict) -> None:
         model=model,
         dataset=test_dataloader.dataset,
         tokenizer=tokenizer,
-        seq_length=config["seq_length"],
+        seq_length=config["tgt_seq_length"],
         device=device,
         beam_size=config["beam_size"],
         topk=config["topk"],

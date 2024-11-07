@@ -143,13 +143,12 @@ def split_dataset(config: dict) -> None:
         )
 
     if config["remove_invalid_length"]:
-        num_keeped_tokens = 2
         valid_df = remove_rows_by_invalid_seq_length(
             df=valid_df,
             tokenizer=tokenizer,
             config=config,
-            max_seq_length=config["seq_length"] - num_keeped_tokens,
-            min_seq_length=0,
+            src_seq_length=config["src_seq_length"],
+            tgt_seq_length=config["tgt_seq_length"],
         )
 
     if config["is_sampling"]:

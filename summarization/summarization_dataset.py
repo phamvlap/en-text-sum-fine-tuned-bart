@@ -20,7 +20,8 @@ class SummarizationDataset(Dataset):
         tokenizer: BartTokenizer,
         text_src: str,
         text_tgt: str,
-        seq_length: int,
+        src_seq_length: int,
+        tgt_seq_length: int,
         attach_text: bool = False,
     ) -> None:
         super().__init__()
@@ -30,7 +31,8 @@ class SummarizationDataset(Dataset):
         self.text_tgt = text_tgt
         self.bos_token_id = self.tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
         self.eos_token_id = self.tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
-        self.seq_length = seq_length
+        self.src_seq_length = src_seq_length
+        self.tgt_seq_length = tgt_seq_length
         self.attach_text = attach_text
 
     def __len__(self) -> int:
@@ -62,19 +64,19 @@ class SummarizationDataset(Dataset):
             ]
         )
 
-        if len(src_tokens) > self.seq_length:
+        if len(src_tokens) > self.src_seq_length:
             src_tokens = torch.cat(
                 [
-                    src_tokens[: self.seq_length - 1],
+                    src_tokens[: self.src_seq_length - 1],
                     Tensor([self.eos_token_id]),
                 ]
             )
-        if len(tgt_tokens) > self.seq_length:
-            tgt_tokens = tgt_tokens[: self.seq_length]
-        if len(labels) > self.seq_length:
+        if len(tgt_tokens) > self.tgt_seq_length:
+            tgt_tokens = tgt_tokens[: self.tgt_seq_length]
+        if len(labels) > self.tgt_seq_length:
             labels = torch.cat(
                 [
-                    labels[: self.seq_length - 1],
+                    labels[: self.tgt_seq_length - 1],
                     Tensor([self.eos_token_id]),
                 ]
             )
@@ -84,9 +86,9 @@ class SummarizationDataset(Dataset):
         # labels must be of type long (torch.int64) for CrossEntropyLoss
         labels = labels.type(torch.int64)
 
-        assert src_tokens.size(-1) <= self.seq_length
-        assert tgt_tokens.size(-1) <= self.seq_length
-        assert labels.size(-1) <= self.seq_length
+        assert src_tokens.size(-1) <= self.src_seq_length
+        assert tgt_tokens.size(-1) <= self.tgt_seq_length
+        assert labels.size(-1) <= self.tgt_seq_length
 
         data = {
             "encoder_input": src_tokens,
@@ -107,7 +109,8 @@ def get_summarization_dataset(
     tokenizer: BartTokenizer,
     text_src: str,
     text_tgt: str,
-    seq_length: int,
+    src_seq_length: int,
+    tgt_seq_length: int,
     attach_text: bool = False,
 ) -> SummarizationDataset:
     if split not in ["train", "val", "test"]:
@@ -120,7 +123,8 @@ def get_summarization_dataset(
         tokenizer=tokenizer,
         text_src=text_src,
         text_tgt=text_tgt,
-        seq_length=seq_length,
+        src_seq_length=src_seq_length,
+        tgt_seq_length=tgt_seq_length,
         attach_text=attach_text,
     )
 
@@ -176,7 +180,8 @@ def get_dataloader(
         tokenizer=tokenizer,
         text_src=config["text_src"],
         text_tgt=config["text_tgt"],
-        seq_length=config["seq_length"],
+        src_seq_length=config["src_seq_length"],
+        tgt_seq_length=config["tgt_seq_length"],
         attach_text=config["attach_text"],
     )
 

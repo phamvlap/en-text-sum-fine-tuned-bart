@@ -114,15 +114,17 @@ def remove_rows_by_invalid_seq_length(
     df: pd.DataFrame,
     tokenizer: BartTokenizer,
     config: dict,
-    max_seq_length: int,
-    min_seq_length: int = 0,
+    src_seq_length: int,
+    tgt_seq_length: int,
 ) -> pd.DataFrame:
-    if min(min_seq_length, max_seq_length) < 0:
+    if min(src_seq_length, tgt_seq_length) < 0:
         raise ValueError(
-            "min_seq_length and max_seq_length must be greater than or equal to zero."
+            f"src_seq_length and tgt_seq_length must be greater than or equal to zero, got src_seq_length={src_seq_length} and tgt_seq_length={tgt_seq_length}."
         )
-    if min_seq_length >= max_seq_length:
-        raise ValueError("min_seq_length must be less than to max_seq_length.")
+    if src_seq_length < tgt_seq_length:
+        raise ValueError(
+            f"src_seq_length must be greater or equal than to tgt_seq_length, got src_seq_length={src_seq_length} and tgt_seq_length={tgt_seq_length}."
+        )
     if any(
         [
             feature not in df.columns
@@ -143,8 +145,8 @@ def remove_rows_by_invalid_seq_length(
         source_token_length = len(tokenizer.encode(source_text))
         target_token_length = len(tokenizer.encode(target_text))
         is_valid_rows[i] = (
-            min(source_token_length, target_token_length) >= min_seq_length
-            and max(source_token_length, target_token_length) <= max_seq_length
+            source_token_length + 2 <= src_seq_length
+            and target_token_length + 1 <= tgt_seq_length
         )
 
     return df[is_valid_rows].reset_index(drop=True)

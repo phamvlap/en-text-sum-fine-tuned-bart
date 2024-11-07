@@ -11,7 +11,8 @@ from bart.constants import RougeKey
 @dataclass
 class TrainingArguments:
     device: torch.device
-    seq_length: int
+    src_seq_length: int
+    tgt_seq_length: int
     num_epochs: int
     checkpoint_dir: str
     model_basename: str

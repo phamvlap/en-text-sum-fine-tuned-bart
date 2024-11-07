@@ -171,7 +171,8 @@ def train(config: dict) -> None:
 
     training_args = TrainingArguments(
         device=device,
-        seq_length=config["seq_length"],
+        src_seq_length=config["src_seq_length"],
+        tgt_seq_length=config["tgt_seq_length"],
         initial_epoch=initial_epoch,
         initial_global_step=initial_global_step,
         num_epochs=config["epochs"],

@@ -27,11 +27,11 @@ def parse_args() -> dict[str, Any]:
         help="batch size of dataset for testing (default: 8)",
     )
     parser.add_argument(
-        "--seq_length",
+        "--tgt_seq_length",
         type=int,
         required=True,
-        default=512,
-        help="maximum length of sequence (default: 512)",
+        default=256,
+        help="maximum length of output sequence (default: 256)",
     )
     parser.add_argument(
         "--eval_bert_score",

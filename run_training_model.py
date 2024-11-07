@@ -218,11 +218,18 @@ def parse_args() -> dict[str, Any]:
         help="show progress during evaluating (default: False)",
     )
     parser.add_argument(
-        "--seq_length",
+        "--src_seq_length",
         type=int,
         required=True,
-        default=512,
-        help="maximum length of sequence (default: 512)",
+        default=768,
+        help="maximum length of input sequence (default: 768)",
+    )
+    parser.add_argument(
+        "--tgt_seq_length",
+        type=int,
+        required=True,
+        default=256,
+        help="maximum length of output sequence (default: 256)",
     )
     parser.add_argument(
         "--d_model",
