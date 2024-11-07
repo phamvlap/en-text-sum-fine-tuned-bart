@@ -91,7 +91,7 @@ class Summarizer:
                 Tensor(input_tokens),
                 Tensor([self.eos_token_id]),
             ]
-        ).type(torch.int64)
+        ).type(torch.int32)
         return encoder_input
 
     def _postprocess_output_text(self, text: str) -> str:

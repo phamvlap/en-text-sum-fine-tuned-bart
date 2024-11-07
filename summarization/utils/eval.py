@@ -77,7 +77,7 @@ def greedy_search_decode(
     encoder_attention_mask = create_encoder_mask(
         encoder_input=input_ids,
         pad_token_id=pad_token_id,
-    ).to(torch.int64)
+    ).to(torch.int32)
 
     # decoder_input (1, 1)
     decoder_input = torch.empty(1, 1).fill_(value=bos_token_id).type_as(input_ids)
@@ -86,7 +86,7 @@ def greedy_search_decode(
         decoder_attention_mask = create_decoder_mask(
             decoder_input=decoder_input,
             pad_token_id=pad_token_id,
-        ).to(torch.int64)
+        ).to(torch.int32)
 
         # logits (1, decoder_input.size(1), vocab_size)
         logits = model(
@@ -165,7 +165,7 @@ def beam_search_decode(
     encoder_attention_mask = create_encoder_mask(
         encoder_input=input_ids,
         pad_token_id=pad_token_id,
-    ).to(torch.int64)
+    ).to(torch.int32)
 
     # Initialize decoder input with only <s> token (1, 1)
     decoder_input = torch.empty(1, 1).fill_(value=bos_token_id).type_as(input_ids)
@@ -192,7 +192,7 @@ def beam_search_decode(
             decoder_attention_mask = create_decoder_mask(
                 decoder_input=cand,
                 pad_token_id=pad_token_id,
-            ).to(torch.int64)
+            ).to(torch.int32)
 
             # logits (1, cand.size(1), vocab_size)
             logits = model(
@@ -299,11 +299,11 @@ def evaluate(
         encoder_attention_mask = create_encoder_mask(
             encoder_input=encoder_input,
             pad_token_id=pad_token_id,
-        ).to(torch.int64)
+        ).to(torch.int32)
         decoder_attention_mask = create_decoder_mask(
             decoder_input=decoder_input,
             pad_token_id=pad_token_id,
-        ).to(torch.int64)
+        ).to(torch.int32)
 
         # logits (batch_size, seq_length, vocab_size)
         logits = model(

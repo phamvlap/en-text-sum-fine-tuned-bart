@@ -11,7 +11,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import BartTokenizer
 from tqdm import tqdm
 from typing import Optional, Union
-from pathlib import Path
 from dotenv import load_dotenv
 from huggingface_hub import HfApi, login
 
@@ -140,10 +139,10 @@ class Trainer:
                 self.optimizer.zero_grad(set_to_none=True)
 
                 src_attention_mask = (encoder_input != self.pad_token_id).to(
-                    dtype=torch.int64,
+                    dtype=torch.int32,
                 )
                 tgt_attention_mask = (decoder_input != self.pad_token_id).to(
-                    dtype=torch.int64,
+                    dtype=torch.int32,
                 )
 
                 # Forward pass with autocast
