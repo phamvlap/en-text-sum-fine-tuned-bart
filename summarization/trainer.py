@@ -123,7 +123,7 @@ class Trainer:
                     desc=f"Training epoch {epoch + 1}/{self.args.num_epochs}",
                 )
 
-            for batch in batch_iterator:
+            for idx, batch in enumerate(batch_iterator):
                 # encoder_input (batch_size, src_seq_length)
                 # decoder_input(batch_size, tgt_seq_length)
                 # labels (batch_size, tgt_seq_length)
@@ -169,41 +169,51 @@ class Trainer:
                 if self.scaler is not None:
                     # Backpropagation
                     self.scaler.scale(loss).backward()
-                    # Clip gradients norm
-                    if (
-                        self.args.max_grad_norm is not None
-                        and self.args.max_grad_norm > 0
-                    ):
-                        self.scaler.unscale_(self.optimizer)
-                        torch.nn.utils.clip_grad_norm_(
-                            parameters=self.model.parameters(),
-                            max_norm=self.args.max_grad_norm,
-                        )
-                    # Update weights and learning rate
-                    self.scaler.step(self.optimizer)
-                    self.scaler.update()
                 else:
                     loss.backward()
-                    self.optimizer.step()
 
-                if self.lr_scheduler is not None:
-                    if self.wb_logger is not None:
-                        for idx, lr_value in enumerate(self.lr_scheduler.get_last_lr()):
-                            self.wb_logger.log(
-                                {f"learning_rate_{idx}": lr_value},
-                                step=global_step,
+                if ((idx + 1) % self.args.gradient_accumulation_steps == 0) or (
+                    idx + 1 == len(train_dataloader)
+                ):
+                    if self.scaler is not None:
+                        # Clip gradients norm
+                        if (
+                            self.args.max_grad_norm is not None
+                            and self.args.max_grad_norm > 0
+                        ):
+                            self.scaler.unscale_(self.optimizer)
+                            torch.nn.utils.clip_grad_norm_(
+                                parameters=self.model.parameters(),
+                                max_norm=self.args.max_grad_norm,
                             )
-                    self.lr_scheduler.step()
+                        # Update weights and learning rate
+                        self.scaler.step(self.optimizer)
+                        self.scaler.update()
+                    else:
+                        self.optimizer.step()
+
+                    logs = {
+                        "loss": loss.item(),
+                    }
+                    if self.lr_scheduler is not None:
+                        if self.wb_logger is not None:
+                            for lr_idx, lr_value in enumerate(
+                                self.lr_scheduler.get_last_lr()
+                            ):
+                                logs[f"learning_rate_{lr_idx}"] = lr_value
+                        self.lr_scheduler.step()
+
+                    if self.wb_logger is not None:
+                        self.wb_logger.log(logs=logs, step=global_step)
+
+                    batch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
+
+                global_step += 1
 
                 if self.training_loss is not None:
                     self.training_loss.update(value=loss.item())
 
-                batch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
-                global_step += 1
-
-                if self.wb_logger is not None:
-                    self.wb_logger.log({"loss": loss.item()})
-
+                # Evalute model
                 if global_step % self.args.eval_every_n_steps == 0:
                     self._maybe_evaluate(
                         val_dataloader=val_dataloader,

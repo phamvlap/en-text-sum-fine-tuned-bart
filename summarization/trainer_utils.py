@@ -44,6 +44,7 @@ class TrainingArguments:
     world_size: Optional[int] = None
     max_eval_steps: int = 100
     max_train_steps: int = -1
+    gradient_accumulation_steps: int = 2
     greater_checking: bool = False
     checked_metric: str = "loss"
     max_saved_checkpoints: int = 2

@@ -192,6 +192,13 @@ def parse_args() -> dict[str, Any]:
         help="maximum steps for each training iterator (default: -1)",
     )
     parser.add_argument(
+        "--gradient_accumulation_steps",
+        type=int,
+        required=False,
+        default=2,
+        help="number of steps to accumulate gradients (default: 2)",
+    )
+    parser.add_argument(
         "--greater_checking",
         action="store_true",
         dest="greater_checking",
