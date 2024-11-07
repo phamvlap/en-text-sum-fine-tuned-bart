@@ -194,6 +194,12 @@ def train(config: dict) -> None:
         world_size=config["world_size"] if config["use_ddp"] else None,
         max_eval_steps=config["max_eval_steps"],
         max_train_steps=config["max_train_steps"],
+        greater_checking=config["greater_checking"],
+        checked_metric=config["checked_metric"],
+        max_saved_checkpoints=config["max_saved_checkpoints"],
+        show_eval_progress=config["show_eval_progress"],
+        push_to_hub=config["push_to_hub"],
+        hub_repo_name=config["hub_repo_name"],
     )
 
     wb_logger = None

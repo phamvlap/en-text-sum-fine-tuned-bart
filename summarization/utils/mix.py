@@ -28,8 +28,9 @@ def write_to_csv(
     df = pd.DataFrame(obj)
 
     file_path = str(file_path)
-    dir_path = file_path.rsplit("/", 1)[0]
-    make_dir(dir_path=dir_path)
+    dir_path_splits = file_path.rsplit("/", 1)
+    if len(dir_path_splits) > 1:
+        make_dir(dir_path=dir_path_splits[0])
 
     df.to_csv(file_path, index=False)
 
@@ -73,8 +74,9 @@ def is_torch_cuda_available() -> bool:
 
 def write_to_yaml(data: dict[str, Any], file_path: str | Path) -> None:
     file_path = str(file_path)
-    parent_dir = file_path.rsplit("/", 1)[0]
-    make_dir(parent_dir)
+    dir_path_splits = file_path.rsplit("/", 1)
+    if len(dir_path_splits) > 1:
+        make_dir(dir_path=dir_path_splits[0])
 
     for key in ["special_tokens", "betas", "rouge_keys"]:
         if key in data:

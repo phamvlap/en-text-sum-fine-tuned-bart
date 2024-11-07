@@ -34,6 +34,12 @@ def parse_args() -> dict[str, Any]:
         help="maximum length of sequence (default: 512)",
     )
     parser.add_argument(
+        "--eval_bert_score",
+        action="store_true",
+        dest="eval_bert_score",
+        help="evaluate Bert score (default: False)",
+    )
+    parser.add_argument(
         "--use_stemmer",
         action="store_true",
         dest="use_stemmer",
@@ -41,16 +47,9 @@ def parse_args() -> dict[str, Any]:
     )
     parser.add_argument(
         "--accumulate",
-        type=str,
-        required=False,
-        default="best",
-        help="accumulate type for training (best, avg) (default: best)",
-    )
-    parser.add_argument(
-        "--eval_bert_score",
         action="store_true",
-        dest="eval_bert_score",
-        help="evaluate Bert score (default: False)",
+        dest="accumulate",
+        help="accumulate when compute Bert score (default: False)",
     )
     parser.add_argument(
         "--rescale",
@@ -99,8 +98,9 @@ def parse_args() -> dict[str, Any]:
         help="directory to save statistics (default: statistics)",
     )
     parser.set_defaults(
-        use_stemmer=False,
         eval_bert_score=False,
+        accumulate=False,
+        use_stemmer=False,
         rescale=False,
         truncation=False,
         log_examples=False,
