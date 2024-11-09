@@ -233,9 +233,21 @@ def compute_rouge_bert_score(
         if isinstance(pred_tokens, Tensor):
             pred_tokens = pred_tokens.detach().cpu().numpy()
 
-        src_text = tokenizer.decode(src_tokens, skip_special_tokens=True)
-        tgt_text = tokenizer.decode(tgt_tokens, skip_special_tokens=True)
-        pred_text = tokenizer.decode(pred_tokens, skip_special_tokens=True)
+        src_text = tokenizer.decode(
+            src_tokens,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True,
+        )
+        tgt_text = tokenizer.decode(
+            tgt_tokens,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True,
+        )
+        pred_text = tokenizer.decode(
+            pred_tokens,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True,
+        )
 
         pred_text_list.append(pred_text)
         target_text_list.append(tgt_text)
@@ -244,7 +256,11 @@ def compute_rouge_bert_score(
             for cand in cand_list:
                 if isinstance(cand, Tensor):
                     cand = cand.detach().cpu().numpy()
-                cand_text = tokenizer.decode(cand, skip_special_tokens=True)
+                cand_text = tokenizer.decode(
+                    cand,
+                    skip_special_tokens=True,
+                    clean_up_tokenization_spaces=True,
+                )
                 cand_text_list.append(cand_text)
 
         if log_examples and idx % logging_steps == 0:

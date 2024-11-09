@@ -51,7 +51,11 @@ class Summarizer:
                 )
                 cand_list = [cand.detach().cpu().numpy() for cand in cand_list]
                 cand_text_list = [
-                    self.tokenizer.decode(cand, skip_special_tokens=True)
+                    self.tokenizer.decode(
+                        cand,
+                        skip_special_tokens=True,
+                        clean_up_tokenization_spaces=True,
+                    )
                     for cand in cand_list
                 ]
                 cand_text_list = [
@@ -68,7 +72,11 @@ class Summarizer:
                     device=self.device,
                 )
                 pred_tokens = pred_tokens.detach().cpu().numpy()
-                pred_text = self.tokenizer.decode(pred_tokens, skip_special_tokens=True)
+                pred_text = self.tokenizer.decode(
+                    pred_tokens,
+                    skip_special_tokens=True,
+                    clean_up_tokenization_spaces=True,
+                )
                 pred_text = self._postprocess_output_text(text=pred_text)
                 return pred_text
 
