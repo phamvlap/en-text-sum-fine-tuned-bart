@@ -1,15 +1,21 @@
+import os
+import pandas as pd
 import torch
 import torch.nn as nn
+
+from transformers import PretrainedConfig
 
 from bart.model import build_bart_model, FineTunedBartForGeneration, ModelArguments
 from bart.constants import SpecialToken
 from .trainer_utils import get_last_checkpoint
 from .summarization_dataset import get_dataloader
 from .utils.seed import set_seed
-from .utils.mix import write_to_csv, make_dir
+from .utils.mix import make_dir, write_to_json
 from .utils.eval import evaluate
 from .utils.tokenizer import load_tokenizer
 from .utils.metrics import compute_rouge_bert_score
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 def test(config: dict) -> None:
@@ -36,6 +42,8 @@ def test(config: dict) -> None:
         checkpoint_prefix=config["model_basename"],
     )
     if last_checkpoint is not None:
+        print(f"Loading from checkpoint {last_checkpoint}")
+        torch.serialization.add_safe_globals([PretrainedConfig])
         checkpoint_states = torch.load(
             last_checkpoint,
             weights_only=True,
@@ -61,7 +69,6 @@ def test(config: dict) -> None:
         label_smoothing=config["label_smoothing"],
     ).to(device=device)
 
-    print("Evaluating model...")
     eval_result = evaluate(
         model=model,
         val_dataloader=test_dataloader,
@@ -90,16 +97,16 @@ def test(config: dict) -> None:
         max_steps=config["max_eval_steps"],
     )
 
-    columns = list(eval_result.keys()) + list(scores.keys())
-    data = [[value] for value in eval_result.values()] + [
-        [value] for value in scores.values()
-    ]
+    summary_metrics = {
+        **eval_result,
+        **scores,
+    }
+    df_metric_scores = pd.DataFrame(summary_metrics, index=[0])
 
     make_dir(config["statistic_dir"])
-    df = write_to_csv(
-        columns=columns,
-        data=data,
-        file_path=f"{config['statistic_dir']}/test_result.csv",
-    )
+    file_path = f"{config['statistic_dir']}/test_summary_metrics.json"
+    write_to_json(data=summary_metrics, file_path=file_path)
+
+    print(f"Test result saved to {file_path}")
     print("TEST METRIC SCORES:")
-    print(df)
+    print(df_metric_scores)

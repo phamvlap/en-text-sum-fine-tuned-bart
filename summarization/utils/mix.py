@@ -1,6 +1,6 @@
 import yaml
+import json
 import types
-import pandas as pd
 import torch
 import torch.nn as nn
 
@@ -16,25 +16,50 @@ def make_dir(dir_path: str) -> None:
     Path(dir_path).mkdir(parents=True, exist_ok=True)
 
 
-def write_to_csv(
-    columns: list[str],
-    data: list[list[int | float | str]],
-    file_path: str | Path,
-) -> pd.DataFrame:
-    obj = {}
-    for i, column in enumerate(columns):
-        obj[column] = data[i]
-
-    df = pd.DataFrame(obj)
-
+def write_to_json(data: dict[str, Any], file_path: str | Path) -> None:
     file_path = str(file_path)
-    dir_path_splits = file_path.rsplit("/", 1)
-    if len(dir_path_splits) > 1:
-        make_dir(dir_path=dir_path_splits[0])
 
-    df.to_csv(file_path, index=False)
+    file_path_splits = file_path.rsplit("/", 1)
+    if len(file_path_splits) > 1:
+        make_dir(dir_path=file_path_splits[0])
 
-    return df
+    new_file_path = file_path
+    if not file_path.endswith(".json"):
+        new_file_path = f"{file_path_splits[0]}/data.json"
+        print(
+            f"Expected json file, got {file_path}. Saving to {new_file_path} instead."
+        )
+
+    with open(new_file_path, "w") as file:
+        json.dump(data, file, indent=2)
+        file.write("\n")
+
+
+def write_to_yaml(
+    data: dict[str, Any],
+    file_path: str | Path,
+    keys_have_list_value: list[str] = [],
+) -> None:
+    file_path = str(file_path)
+
+    file_path_splits = file_path.rsplit("/", 1)
+    if len(file_path_splits) > 1:
+        make_dir(dir_path=file_path_splits[0])
+
+    new_file_path = file_path
+    file_extension = file_path_splits[-1].split(".")[-1]
+    if file_extension not in ["yaml", "yml"]:
+        new_file_path = f"{file_path_splits[0]}/data.yaml"
+        print(
+            f"Expected yaml or yml file, got {file_path}. Saving to {new_file_path} instead."
+        )
+
+    for key in keys_have_list_value:
+        if key in data:
+            data[key] = list(data[key])
+
+    with open(new_file_path, "w") as file:
+        yaml.dump(data, file, default_flow_style=False)
 
 
 def get_constants_from_module(module: object) -> dict[str, Any]:
@@ -72,20 +97,6 @@ def is_torch_cuda_available() -> bool:
     return torch.cuda.is_available()
 
 
-def write_to_yaml(data: dict[str, Any], file_path: str | Path) -> None:
-    file_path = str(file_path)
-    dir_path_splits = file_path.rsplit("/", 1)
-    if len(dir_path_splits) > 1:
-        make_dir(dir_path=dir_path_splits[0])
-
-    for key in ["special_tokens", "betas", "rouge_keys"]:
-        if key in data:
-            data[key] = list(data[key])
-
-    with open(file_path, "w") as file:
-        yaml.dump(data, file, default_flow_style=False)
-
-
 def get_current_time(to_string: bool = False) -> datetime | str:
     timezone_name = "Asia/Ho_Chi_Minh"
     tz = timezone(timezone_name)
@@ -113,7 +124,11 @@ def update_setting_config(new_config: dict[str, Any]) -> dict[str, Any]:
     config = load_config(SETTING_CONFIG_FILE)
 
     config = {**config, **new_config}
-    write_to_yaml(config, SETTING_CONFIG_FILE)
+    write_to_yaml(
+        data=config,
+        file_path=SETTING_CONFIG_FILE,
+        keys_have_list_value=["special_tokens", "betas", "rouge_keys"],
+    )
 
     return config
 

@@ -4,6 +4,7 @@ import torch.nn as nn
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
+from transformers import PretrainedConfig
 
 from bart.model import ModelArguments, build_bart_model
 from bart.constants import SpecialToken
@@ -111,7 +112,12 @@ def train(config: dict) -> None:
     else:
         print_once(config, f"Loading model from checkpoint {checkpoint_path}")
 
-        checkpoint_states = torch.load(checkpoint_path, map_location=device)
+        torch.serialization.add_safe_globals([PretrainedConfig])
+        checkpoint_states = torch.load(
+            checkpoint_path,
+            weights_only=True,
+            map_location=device,
+        )
 
         required_keys = [
             "model_state_dict",

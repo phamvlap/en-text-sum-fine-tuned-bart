@@ -34,6 +34,12 @@ def parse_args() -> dict[str, Any]:
         help="maximum length of output sequence (default: 256)",
     )
     parser.add_argument(
+        "--show_eval_progress",
+        action="store_true",
+        dest="show_eval_progress",
+        help="show progress during evaluating (default: False)",
+    )
+    parser.add_argument(
         "--eval_bert_score",
         action="store_true",
         dest="eval_bert_score",
@@ -98,6 +104,7 @@ def parse_args() -> dict[str, Any]:
         help="directory to save statistics (default: statistics)",
     )
     parser.set_defaults(
+        show_eval_progress=False,
         eval_bert_score=False,
         accumulate=False,
         use_stemmer=False,

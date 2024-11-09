@@ -206,7 +206,7 @@ def _get_sampler(dataset: Dataset, config: dict[str, Any]) -> Optional[Sampler]:
     if not has_length(dataset):
         return None
     sampler = None
-    if config["use_ddp"]:
+    if "use_ddp" in config and config["use_ddp"]:
         sampler = DistributedSampler(
             dataset,
             num_replicas=config["world_size"],
