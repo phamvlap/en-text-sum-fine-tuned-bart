@@ -317,6 +317,13 @@ def parse_args() -> dict[str, Any]:
         help="key of wandb log (default: None)",
     )
     parser.add_argument(
+        "--resume_from_id",
+        type=str,
+        required=False,
+        default=None,
+        help="id of wandb run to resume (default: None)",
+    )
+    parser.add_argument(
         "--push_to_hub",
         action="store_true",
         dest="push_to_hub",

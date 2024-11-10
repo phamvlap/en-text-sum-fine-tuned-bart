@@ -174,7 +174,7 @@ class Trainer:
                         ):
                             self.scaler.unscale_(self.optimizer)
                             torch.nn.utils.clip_grad_norm_(
-                                parameters=self.actual_model.parameters(),
+                                parameters=self.model.parameters(),
                                 max_norm=self.args.max_grad_norm,
                             )
                         # Update weights and learning rate

@@ -8,7 +8,7 @@ from transformers import PretrainedConfig
 from typing import Any
 
 from bart.model import ModelArguments, build_bart_model
-from bart.constants import SpecialToken
+from bart.constants import SpecialToken, SETTING_CONFIG_FILE
 from .summarization_dataset import get_dataloader
 from .trainer import Trainer
 from .trainer_utils import TrainingArguments, get_last_checkpoint
@@ -18,6 +18,7 @@ from .utils.mix import (
     count_parameters,
     is_torch_cuda_available,
     get_current_time,
+    load_config,
     print_once,
 )
 from .utils.optimizer import get_optimizer, get_lr_scheduler
@@ -213,21 +214,28 @@ def train(config: dict) -> None:
 
     wb_logger = None
     if config["is_logging_wandb"]:
+        safe_config = load_config(config_path=SETTING_CONFIG_FILE)
         saved_config: dict[str, Any] = {
             "model_config": bart_model_config.__dict__,
             "training_args": {
-                **config,
+                **safe_config,
                 **training_args.__dict__,
             },
         }
         display_name = f"running_{get_current_time(to_string=True)}"
+        kwargs = {
+            "key": config["wandb_key"],
+            "log_dir": config["wandb_log_dir"],
+            "name": display_name,
+        }
+        if config["resume_from_id"] is not None:
+            kwargs["id"] = config["resume_from_id"]
+            kwargs["resume"] = "must"
 
         wb_logger = WandbLogger(
             project_name=config["wandb_project_name"],
             config=saved_config,
-            key=config["wandb_key"],
-            log_dir=config["wandb_log_dir"],
-            name=display_name,
+            **kwargs,
         )
 
     trainer = Trainer(

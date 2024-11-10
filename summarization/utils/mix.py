@@ -126,13 +126,14 @@ def update_setting_config(
 ) -> dict[str, Any]:
     config = load_config(config_path=SETTING_CONFIG_FILE)
     config = {**config, **new_config}
+    saved_config = {**config}
 
     for key in excepted_keys:
-        if key in config:
-            del config[key]
+        if key in saved_config:
+            del saved_config[key]
 
     write_to_yaml(
-        data=config,
+        data=saved_config,
         file_path=SETTING_CONFIG_FILE,
         keys_have_list_value=["special_tokens", "betas", "rouge_keys"],
     )
