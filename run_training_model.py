@@ -353,6 +353,6 @@ def parse_args() -> dict[str, Any]:
 
 if __name__ == "__main__":
     args = parse_args()
-    config = update_setting_config(new_config=args)
+    config = update_setting_config(new_config=args, excepted_keys=["wandb_key"])
 
     main(config)

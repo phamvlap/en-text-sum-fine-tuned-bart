@@ -91,12 +91,6 @@ class Trainer:
 
         # Traing loop
         for epoch in range(self.args.initial_epoch, self.args.num_epochs):
-            if (
-                self.args.max_train_steps > 0
-                and global_step > self.args.max_train_steps
-            ):
-                break
-
             # Empty cache
             torch.cuda.empty_cache()
 
@@ -180,7 +174,7 @@ class Trainer:
                         ):
                             self.scaler.unscale_(self.optimizer)
                             torch.nn.utils.clip_grad_norm_(
-                                parameters=self.model.parameters(),
+                                parameters=self.actual_model.parameters(),
                                 max_norm=self.args.max_grad_norm,
                             )
                         # Update weights and learning rate
@@ -193,40 +187,51 @@ class Trainer:
                         "loss": loss.item(),
                     }
                     if self.lr_scheduler is not None:
-                        if self.wb_logger is not None:
-                            for lr_idx, lr_value in enumerate(
-                                self.lr_scheduler.get_last_lr()
-                            ):
-                                logs[f"learning_rate_{lr_idx}"] = lr_value
+                        for lr_idx, lr_value in enumerate(
+                            self.lr_scheduler.get_last_lr()
+                        ):
+                            logs[f"learning_rate_{lr_idx}"] = lr_value
                         self.lr_scheduler.step()
 
                     if self.wb_logger is not None:
-                        self.wb_logger.log(logs=logs, step=global_step)
+                        self.wb_logger.log(logs=logs, step=global_step + 1)
 
                     batch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
-
-                global_step += 1
 
                 if self.training_loss is not None:
                     self.training_loss.update(value=loss.item())
 
                 # Evalute model
-                if global_step % self.args.eval_every_n_steps == 0:
+                if (global_step + 1) % self.args.eval_every_n_steps == 0:
                     self._maybe_evaluate(
                         val_dataloader=val_dataloader,
-                        step=global_step,
+                        step=global_step + 1,
                     )
 
                 # Save model
-                if (
-                    self._is_local_main_process()
-                    and global_step % self.args.save_every_n_steps == 0
+                if self._is_local_main_process() and (
+                    ((global_step + 1) % self.args.save_every_n_steps == 0)
+                    or (
+                        self.args.max_train_steps > 0
+                        and global_step + 1 == self.args.max_train_steps
+                    )
+                    or (
+                        epoch + 1 == self.args.num_epochs
+                        and idx + 1 == len(train_dataloader)
+                    )
                 ):
                     self._save_checkpoint(
-                        global_step=global_step,
                         epoch=epoch,
-                        step=global_step,
+                        step=global_step + 1,
                     )
+
+                global_step += 1
+
+                if (
+                    self.args.max_train_steps > 0
+                    and global_step > self.args.max_train_steps
+                ):
+                    break
 
         if self.wb_logger is not None:
             self.wb_logger.finish()
@@ -274,11 +279,6 @@ class Trainer:
             valid_scores=scores,
         )
 
-        metric_scores = {
-            **eval_result,
-            **scores,
-        }
-
     def _log_evaluation_result(
         self,
         step: int,
@@ -300,16 +300,16 @@ class Trainer:
 
         self.wb_logger.log(logs=logs, step=step)
 
-        # Reset metric tracker after writing to wandb
+        # Reset training loss after writing to wandb
         if self.training_loss is not None:
             self.training_loss.reset()
 
-    def _save_checkpoint(self, global_step: int, epoch: int, step: int) -> None:
+    def _save_checkpoint(self, epoch: int, step: int) -> None:
         model_filepath = self._get_checkpoint_path(step=step)
 
         checkpoint_states = {
             "epoch": epoch,
-            "global_step": global_step,
+            "global_step": step,
             "model_state_dict": self.actual_model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict(),
             "config": self.bart_config,
@@ -351,7 +351,7 @@ class Trainer:
         hf_api = HfApi()
 
         hub_repo_id = f"{self.hf_user}/{self.args.hub_repo_name}"
-        repo_url = f"{HUGGINGFACE_BASE_URL}/{self.hf_user}/{self.args.hub_repo_name}"
+        repo_url = f"{HUGGINGFACE_BASE_URL}/{hub_repo_id}"
 
         # Create repo if it not exists
         if not hf_api.repo_exists(repo_id=hub_repo_id):
@@ -368,8 +368,22 @@ class Trainer:
         if os.path.exists(tmp_dir):
             shutil.rmtree(tmp_dir)
 
-        shutil.copytree("tokenizer-bart", tmp_dir)
-        shutil.copy2(SETTING_CONFIG_FILE, tmp_dir)
+        if ensure_exist_path(self.args.bart_tokenizer_dir) and ensure_exist_path(
+            SETTING_CONFIG_FILE
+        ):
+            shutil.copytree(self.args.bart_tokenizer_dir, tmp_dir)
+            shutil.copy2(SETTING_CONFIG_FILE, tmp_dir)
+
+            # Upload config and tokenizer files to hub
+            if step == self.args.save_every_n_steps and ensure_exist_path(tmp_dir):
+                hf_api.upload_folder(
+                    repo_id=hub_repo_id,
+                    folder_path=tmp_dir,
+                    commit_message="Add config and tokenizer files",
+                )
+
+        if os.path.exists(tmp_dir):
+            shutil.rmtree(tmp_dir)
 
         # Upload model to hub
         checkpoint_path = self._get_checkpoint_path(step=step)
@@ -381,17 +395,6 @@ class Trainer:
                 commit_message=f"Upload model checkpoint at step {step}",
                 path_in_repo=f"models/{checkpoint_name}",
             )
-
-        # Upload config and tokenizer files to hub
-        if step == self.args.save_every_n_steps and ensure_exist_path(tmp_dir):
-            hf_api.upload_folder(
-                repo_id=hub_repo_id,
-                folder_path=tmp_dir,
-                commit_message="Add config and tokenizer files",
-            )
-
-        if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir)
 
         print(f"Pushed to {repo_url}")
 

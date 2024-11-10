@@ -1,6 +1,6 @@
 import wandb
 
-from typing import Optional
+from typing import Optional, Any
 
 from .mix import make_dir
 
@@ -8,7 +8,7 @@ DEFAULT_LOG_DIR = "wandb-logs"
 VALID_PREFIX_KEY = "eval_"
 
 
-def format_logs(logs: dict) -> dict:
+def format_logs(logs: dict[str, int | float]) -> dict[str, int | float]:
     new_logs = {}
     eval_prefix_length = len(VALID_PREFIX_KEY)
 
@@ -22,16 +22,15 @@ def format_logs(logs: dict) -> dict:
 
 
 class WandbLogger:
-    def __init__(self, project_name: str, config: dict, **kwargs) -> None:
+    def __init__(self, project_name: str, config: dict[str, Any], **kwargs) -> None:
         log_dir = kwargs.get("log_dir", DEFAULT_LOG_DIR)
         make_dir(log_dir)
         wandb_key = kwargs.get("key", None)
 
         args = {**kwargs}
-        if "key" in args:
-            del args["key"]
-        if "log_dir" in args:
-            del args["log_dir"]
+        for key in ["key", "log_dir"]:
+            if key in args:
+                del args[key]
 
         wandb.login(key=wandb_key)
         self.wb_run = wandb.init(

@@ -120,10 +120,17 @@ def print_once(config: dict, text: str) -> None:
         print(text)
 
 
-def update_setting_config(new_config: dict[str, Any]) -> dict[str, Any]:
-    config = load_config(SETTING_CONFIG_FILE)
-
+def update_setting_config(
+    new_config: dict[str, Any],
+    excepted_keys: list[str] = [],
+) -> dict[str, Any]:
+    config = load_config(config_path=SETTING_CONFIG_FILE)
     config = {**config, **new_config}
+
+    for key in excepted_keys:
+        if key in config:
+            del config[key]
+
     write_to_yaml(
         data=config,
         file_path=SETTING_CONFIG_FILE,

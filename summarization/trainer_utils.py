@@ -18,9 +18,9 @@ class TrainingArguments:
     model_basename: str
     initial_epoch: int = 0
     initial_global_step: int = 0
-    eval_every_n_steps: int = 5000
+    eval_every_n_steps: int = 1000
     save_every_n_steps: int = 5000
-    beam_size: Optional[int] = None
+    beam_size: int = 3
     topk: int = 1
     eval_bert_score: bool = True
     rescale: bool = True
@@ -45,9 +45,10 @@ class TrainingArguments:
     max_train_steps: int = -1
     gradient_accumulation_steps: int = 2
     max_saved_checkpoints: int = 2
+    bart_tokenizer_dir: str = "tokenizer-bart"
     show_eval_progress: bool = False
     push_to_hub: bool = True
-    hub_repo_name: str = "en-text-sum-fine-tuned-bart"
+    hub_repo_name: str = "text-summarization-finetuned-bart"
 
 
 def has_length(dataset: Dataset) -> bool:

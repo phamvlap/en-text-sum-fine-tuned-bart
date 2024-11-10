@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 from transformers import PretrainedConfig
+from typing import Any
 
 from bart.model import ModelArguments, build_bart_model
 from bart.constants import SpecialToken
@@ -179,15 +180,17 @@ def train(config: dict) -> None:
         device=device,
         src_seq_length=config["src_seq_length"],
         tgt_seq_length=config["tgt_seq_length"],
-        initial_epoch=initial_epoch,
-        initial_global_step=initial_global_step,
         num_epochs=config["epochs"],
         checkpoint_dir=config["checkpoint_dir"],
         model_basename=config["model_basename"],
+        initial_epoch=initial_epoch,
+        initial_global_step=initial_global_step,
         eval_every_n_steps=config["eval_every_n_steps"],
         save_every_n_steps=config["save_every_n_steps"],
         beam_size=config["beam_size"],
         topk=config["topk"],
+        eval_bert_score=config["eval_bert_score"],
+        rescale=config["rescale"],
         log_examples=config["log_examples"],
         logging_steps=config["logging_steps"],
         use_stemmer=config["use_stemmer"],
@@ -202,6 +205,7 @@ def train(config: dict) -> None:
         max_train_steps=config["max_train_steps"],
         gradient_accumulation_steps=config["gradient_accumulation_steps"],
         max_saved_checkpoints=config["max_saved_checkpoints"],
+        bart_tokenizer_dir=config["tokenizer_bart_dir"],
         show_eval_progress=config["show_eval_progress"],
         push_to_hub=config["push_to_hub"],
         hub_repo_name=config["hub_repo_name"],
@@ -209,9 +213,12 @@ def train(config: dict) -> None:
 
     wb_logger = None
     if config["is_logging_wandb"]:
-        saved_config = {
+        saved_config: dict[str, Any] = {
             "model_config": bart_model_config.__dict__,
-            "training_args": training_args.__dict__,
+            "training_args": {
+                **config,
+                **training_args.__dict__,
+            },
         }
         display_name = f"running_{get_current_time(to_string=True)}"
 
