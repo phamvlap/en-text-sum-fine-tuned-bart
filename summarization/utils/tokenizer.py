@@ -20,7 +20,7 @@ class CustomBartTokenizer:
         min_freq: int,
         model_type: str,
     ) -> None:
-        self.dataset = self._get_iterator(dataset)
+        self.dataset_iterator = self._get_iterator(dataset)
         self.vocab_size = vocab_size
         self.special_tokens = special_tokens
         self.min_freq = min_freq
@@ -35,12 +35,13 @@ class CustomBartTokenizer:
 
     def train(self, show_progress: bool = True) -> BartTokenizer:
         print(f"Training tokenizer with model type: {self.model_type}...")
+
         if self.model_type == TokenizerType.BYTE_LEVEL_BPE:
             tokenizer = ByteLevelBPETokenizer(
                 end_of_word_suffix=SpecialToken.BYTE_LEVEL_BPE_SUFFIX,
             )
             tokenizer.train_from_iterator(
-                self.dataset,
+                self.dataset_iterator,
                 vocab_size=self.vocab_size,
                 min_frequency=self.min_freq,
                 special_tokens=self.special_tokens,
@@ -52,6 +53,10 @@ class CustomBartTokenizer:
             )
 
         tmp_tokenizer_dir = "tokenizer-tmp"
+
+        if Path(tmp_tokenizer_dir).exists():
+            shutil.rmtree(tmp_tokenizer_dir)
+
         make_dir(dir_path=tmp_tokenizer_dir)
 
         tokenizer.model.save(tmp_tokenizer_dir)
@@ -81,4 +86,4 @@ def save_tokenizer(
     bart_tokenizer: BartTokenizer,
     bart_tokenizer_dir: str | Path,
 ) -> None:
-    bart_tokenizer.save_pretrained(bart_tokenizer_dir)
+    bart_tokenizer.save_pretrained(str(bart_tokenizer_dir))
