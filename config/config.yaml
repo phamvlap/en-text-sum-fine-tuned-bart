@@ -4,7 +4,7 @@ seed: 42
 # Model configs
 model_name_or_path: "facebook/bart-base"
 
-# Dataset configs
+# Preprocess dataset configs
 dataset_dir: dataset
 data_files_path:
   raw: dataset/raw.csv
@@ -16,6 +16,8 @@ original_text_src: text
 original_text_tgt: headline
 text_src: article
 text_tgt: abstract
+
+# Split dataset configs
 train_size: 0.75
 val_size: 0.1
 test_size: 0.15
@@ -25,7 +27,7 @@ lowercase: True
 contractions: True
 remove_invalid_length: True
 remove_invalid_text: True
-attach_text: False
+shuffle: True
 
 # Tokenizer configs
 tokenizer_train_ds_path: dataset/raw.csv
@@ -38,7 +40,7 @@ special_tokens:
   - <unk>
   - <mask>
 shared_vocab: True
-vocab_size: 50000
+vocab_size: 50265
 min_freq: 2
 model_type: byte_level_bpe
 show_progress: True
@@ -49,6 +51,7 @@ batch_size_val: 16
 batch_size_test: 4
 shuffle_dataloader: True
 num_workers: 2
+attach_text: False
 
 # Adam and AdamW optimizer configs
 optimizer: adamw
@@ -77,56 +80,33 @@ label_smoothing: 0.1
 checkpoint_dir: checkpoints
 model_basename: bart_model
 epochs: 10
-eval_every_n_steps: 5000
+eval_every_n_steps: 1000
 save_every_n_steps: 5000
 max_grad_norm: 1.0
 f16_precision: True
 max_eval_steps: 100
 max_train_steps: -1
-gradient_accumulation_steps: 2
-greater_checking: False
-checked_metric: loss
-max_saved_checkpoints: 2
+gradient_accumulation_steps: 4
+max_saved_checkpoints: 3
 show_eval_progress: False
 resume_from_checkpoint: True
 
 # BART configs
 src_seq_length: 768 # max length of input sequence
 tgt_seq_length: 256 # max length of output sequence
-d_model: 1024 # dimension of hidden layers
-encoder_layers: 6 # number of encoder layers
-decoder_layers: 6 # number of decoder layers
-encoder_attention_heads: 8 # number of encoder attention heads
-decoder_attention_heads: 8 # number of decoder attention heads
-encoder_ffn_dim: 2048 # dimension of feedforward network in encoder
-decoder_ffn_dim: 2048 # dimension of feedforward network in decoder
-activation_function: gelu # 'gelu', 'relu', 'silu' or 'gelu_new'
-dropout: 0.1 # dropout rate for individual layer
-attention_dropout: 0.1 # dropout rate for attention layer
-activation_dropout: 0.1 # dropout rate after activation function
-classifier_dropout: 0.1 # dropout rate for classifier
-max_position_embeddings: 512
-init_std: 0.02 # standard deviation for initializing weight parameters
-encoder_layerdrop: 0.2 # layer dropout rate for entire encoder layers
-decoder_layerdrop: 0.2 # layer dropout rate for entire decoder layers
-scale_embedding: True # scale embedding by sqrt(d_model)
-num_beams: 4 # beam search size
+d_model: 768 # dimension of hidden layers
 
-# Rouge Score configs
+# Rouge score and Bert score configs
 rouge_keys:
   - rouge1
   - rouge2
   - rougeL
 use_stemmer: True
-accumulate: best # 'best' | 'avg'
-
-# Bert Score configs
+accumulate: avg # 'best' | 'avg'
 eval_bert_score: True
 rescale: True
-
-# Compute Rouge Score configs
 log_examples: True
-logging_steps: 2000
+logging_steps: 20
 
 # Beam search configs
 beam_size: 3
@@ -143,4 +123,10 @@ wandb_key: wandb-key
 
 # Push to hub
 push_to_hub: True
-hub_repo_name: en-text-sum-fine-tuned-bart
+hub_repo_name: text-summarization-finetuned-bart
+
+# Distributed Data Parallel training configs
+use_ddp: False
+rank: -1
+local_rank: -1
+world_size: 0
