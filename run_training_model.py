@@ -271,12 +271,6 @@ def parse_args() -> dict[str, Any]:
         help="rescale when compute Bert score (default: False)",
     )
     parser.add_argument(
-        "--truncation",
-        action="store_true",
-        dest="truncation",
-        help="truncation when compute Bert score (default: False)",
-    )
-    parser.add_argument(
         "--log_examples",
         action="store_true",
         dest="log_examples",
@@ -358,7 +352,6 @@ def parse_args() -> dict[str, Any]:
         use_stemmer=False,
         eval_bert_score=False,
         rescale=False,
-        truncation=False,
         resume_from_checkpoint=False,
         log_examples=False,
         is_logging_wandb=False,

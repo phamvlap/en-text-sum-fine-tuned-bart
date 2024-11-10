@@ -34,7 +34,6 @@ class TrainingArguments:
         ]
     )
     use_stemmer: bool = True
-    truncation: bool = True
     accumulate: Literal["best", "avg"] = "best"
     max_grad_norm: Optional[float] = None
     f16_precision: bool = True

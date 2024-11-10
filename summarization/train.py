@@ -191,7 +191,6 @@ def train(config: dict) -> None:
         log_examples=config["log_examples"],
         logging_steps=config["logging_steps"],
         use_stemmer=config["use_stemmer"],
-        truncation=config["truncation"],
         accumulate=config["accumulate"],
         max_grad_norm=config["max_grad_norm"],
         f16_precision=config["f16_precision"],

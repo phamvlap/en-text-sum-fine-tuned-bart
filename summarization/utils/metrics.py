@@ -1,11 +1,12 @@
 import torch
+import evaluate
+import numpy as np
 
 from torch import Tensor
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchmetrics.text.rouge import ROUGEScore
-from torchmetrics.text.bert import BERTScore
 from transformers import BartTokenizer
-from typing import Literal, Callable, Optional, List, Tuple, Sequence
+from typing import Literal, Callable, Optional, List, Tuple
 from tqdm import tqdm
 
 from bart.model import FineTunedBartForGeneration
@@ -55,35 +56,44 @@ class RougeScorer:
 class BertScorer:
     def __init__(
         self,
-        max_length: int,
-        model_name_or_path: str = "roberta-large",
-        truncation: bool = True,
+        model_type: str = "roberta-large",
+        lang: str = "en",
         rescale: bool = True,
         accumulate: Literal["best", "avg"] = "avg",
     ) -> None:
-        self.bert_scorer = BERTScore(
-            model_name_or_path=model_name_or_path,
-            max_length=max_length,
-            truncation=truncation,
-            rescale_with_baseline=rescale,
-        )
+        self.bert_scorer = evaluate.load("bertscore")
+        self.model_type = model_type
+        self.lang = lang
+        self.rescale = rescale
         self.accumulate = accumulate
 
     def compute(
         self,
-        preds: Sequence[str] | str,
-        target: Sequence[str] | str,
-    ) -> dict[str, Tensor]:
-        score = self.bert_scorer(preds, target)
-        score_summary = {}
+        preds: list[str],
+        target: list[str],
+    ) -> dict[str, float]:
+        scores = self.bert_scorer.compute(
+            predictions=preds,
+            references=target,
+            model_type=self.model_type,
+            rescale_with_baseline=self.rescale,
+            lang=self.lang,
+        )
 
-        for key, value in score.items():
-            if self.accumulate == "avg":
-                score_summary[key] = value.mean()
-            elif self.accumulate == "best":
-                score_summary[key] = value.max()
+        summary_scores: dict[str, np.aray] = {}
+        result: dict[str, np.float32 | float] = {}
 
-        return score_summary
+        for key in ["precision", "recall", "f1"]:
+            summary_scores[key] = np.array(scores[key], dtype=np.float32)
+
+        if self.accumulate == "best":
+            result = {key: np.max(value) for key, value in summary_scores.items()}
+        elif self.accumulate == "avg":
+            result = {key: np.average(value) for key, value in summary_scores.items()}
+
+        result = {key: float(value) for key, value in result.items()}
+
+        return result
 
 
 def format_rouge_score(pure_rouge_score: dict[str, Tensor]) -> dict[str, float]:
@@ -98,7 +108,7 @@ def format_rouge_score(pure_rouge_score: dict[str, Tensor]) -> dict[str, float]:
     return rouge_score
 
 
-def format_bert_score(pure_bert_score: dict[str, Tensor]) -> dict[str, float]:
+def format_bert_score(pure_bert_score: dict[str, float]) -> dict[str, float]:
     key_mapping = {
         "precision": "P-BERT",
         "recall": "R-BERT",
@@ -108,7 +118,7 @@ def format_bert_score(pure_bert_score: dict[str, Tensor]) -> dict[str, float]:
 
     for key in pure_bert_score.keys():
         mapped_key = key_mapping[key]
-        bert_score[mapped_key] = pure_bert_score[key].item()
+        bert_score[mapped_key] = pure_bert_score[key]
 
     return bert_score
 
@@ -129,7 +139,6 @@ def compute_rouge_bert_score(
     use_stemmer: bool = True,
     rouge_keys: Optional[List[str] | Tuple[str]] = None,
     normalizer_function: Optional[Callable] = None,
-    truncation: bool = True,
     accumulate: Literal["best", "avg"] = "avg",
     use_ddp: bool = False,
     rank: Optional[int] = None,
@@ -158,8 +167,6 @@ def compute_rouge_bert_score(
     bert_scorer = None
     if eval_bert_score:
         bert_scorer = BertScorer(
-            max_length=seq_length,
-            truncation=truncation,
             rescale=rescale,
             accumulate=accumulate,
         )
@@ -267,7 +274,7 @@ def compute_rouge_bert_score(
             rouge_score = rouge_scorer.compute(preds=pred_text, target=tgt_text)
             bert_score = None
             if bert_scorer is not None:
-                bert_score = bert_scorer.compute(preds=pred_text, target=tgt_text)
+                bert_score = bert_scorer.compute(preds=[pred_text], target=[tgt_text])
 
             print(f"EXAMPLE: {idx}")
             print(f"SOURCE TEXT: {src_text}")

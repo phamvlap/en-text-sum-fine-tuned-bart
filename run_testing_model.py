@@ -64,12 +64,6 @@ def parse_args() -> dict[str, Any]:
         help="rescale when compute Bert score (default: False)",
     )
     parser.add_argument(
-        "--truncation",
-        action="store_true",
-        dest="truncation",
-        help="truncation when compute Bert score (default: False)",
-    )
-    parser.add_argument(
         "--log_examples",
         action="store_true",
         dest="log_examples",
@@ -109,7 +103,6 @@ def parse_args() -> dict[str, Any]:
         accumulate=False,
         use_stemmer=False,
         rescale=False,
-        truncation=False,
         log_examples=False,
     )
 

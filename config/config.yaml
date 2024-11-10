@@ -123,7 +123,6 @@ accumulate: best # 'best' | 'avg'
 # Bert Score configs
 eval_bert_score: True
 rescale: True
-truncation: True
 
 # Compute Rouge Score configs
 log_examples: True

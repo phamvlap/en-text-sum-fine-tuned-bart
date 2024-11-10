@@ -263,7 +263,6 @@ class Trainer:
             logging_steps=self.args.logging_steps,
             rouge_keys=self.args.rouge_keys,
             use_stemmer=self.args.use_stemmer,
-            truncation=self.args.truncation,
             accumulate=self.args.accumulate,
             use_ddp=self.args.use_ddp,
             rank=self.args.rank,
