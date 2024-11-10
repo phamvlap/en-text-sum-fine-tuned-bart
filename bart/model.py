@@ -5,15 +5,13 @@ from transformers import BartForConditionalGeneration, PretrainedConfig
 from typing import Literal, Optional
 from dataclasses import dataclass
 
-PRE_TRAINED_BART_MODELS = ["facebook/bart-base", "facebook/bart-large"]
+PRE_TRAINED_BART_MODELS = ["facebook/bart-base"]
 
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Literal["facebook/bart-base", "facebook/bart-large"]
-    config_name_or_path: Optional[
-        Literal["facebook/bart-base", "facebook/bart-large"]
-    ] = None
+    model_name_or_path: Literal["facebook/bart-base"]
+    config_name_or_path: Optional[Literal["facebook/bart-base"]] = None
 
 
 class FineTunedBartForGeneration(nn.Module):
@@ -39,13 +37,6 @@ class FineTunedBartForGeneration(nn.Module):
             ):
                 raise ValueError(
                     f"Supported model configs: {', '.join(PRE_TRAINED_BART_MODELS)}, got {model_args.config_name_or_path}"
-                )
-            if (
-                model_args.config_name_or_path is not None
-                and model_args.model_name_or_path != model_args.config_name_or_path
-            ):
-                raise ValueError(
-                    f"Model {model_args.model_name_or_path} and config {model_args.config_name_or_path} incompatible"
                 )
 
             if model_args.config_name_or_path is None:
