@@ -22,7 +22,6 @@ from .utils.mix import is_torch_cuda_available, make_dir, ensure_exist_path
 from .utils.wb_logger import WandbLogger, VALID_PREFIX_KEY
 from .trainer_utils import (
     TrainingArguments,
-    determine_best_metric_value,
     sorted_checkpoints,
     rotate_checkpoints,
     get_checkpoint_path,
@@ -60,10 +59,6 @@ class Trainer:
         self.args = args
         self.bart_config = self.actual_model.get_config()
         self.wb_logger = wb_logger
-        self.best_checkpoint = None
-        self.best_score_value = (
-            float("-inf") if self.args.greater_checking else float("inf")
-        )
         self.hf_user = os.environ.get("HUGGINGFACE_USERNAME", None)
         self.hf_token = os.environ.get("HUGGINGFACE_TOKEN", None)
 
@@ -284,21 +279,6 @@ class Trainer:
             **scores,
         }
 
-        new_best_score_value, new_best_checkpoint = determine_best_metric_value(
-            metric_scores=metric_scores,
-            checked_metric=self.args.checked_metric,
-            greater_checking=self.args.greater_checking,
-            best_metric_value=self.best_score_value,
-            output_dir=self.args.checkpoint_dir,
-            checkpoint_prefix=self.args.model_basename,
-            step=step,
-        )
-
-        if new_best_score_value is not None:
-            self.best_score_value = new_best_score_value
-        if new_best_checkpoint is not None:
-            self.best_checkpoint = new_best_checkpoint
-
     def _log_evaluation_result(
         self,
         step: int,
@@ -350,7 +330,6 @@ class Trainer:
         checkpoint_sorted = sorted_checkpoints(
             output_dir=self.args.checkpoint_dir,
             checkpoint_prefix=self.args.model_basename,
-            best_checkpoint=self.best_checkpoint,
         )
 
         # Remove old checkpoints
@@ -394,7 +373,7 @@ class Trainer:
 
         # Upload model to hub
         checkpoint_path = self._get_checkpoint_path(step=step)
-        if self.best_checkpoint is not None and ensure_exist_path(checkpoint_path):
+        if ensure_exist_path(checkpoint_path):
             checkpoint_name = checkpoint_path.split("/")[-1]
             hf_api.upload_file(
                 path_or_fileobj=checkpoint_path,

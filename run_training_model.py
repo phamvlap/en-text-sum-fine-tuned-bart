@@ -199,19 +199,6 @@ def parse_args() -> dict[str, Any]:
         help="number of steps to accumulate gradients (default: 2)",
     )
     parser.add_argument(
-        "--greater_checking",
-        action="store_true",
-        dest="greater_checking",
-        help="use greater checking for save checkpoint (default: False)",
-    )
-    parser.add_argument(
-        "--checked_metric",
-        type=str,
-        required=False,
-        default="loss",
-        help="metric for checking to save checkpoint (default: loss)",
-    )
-    parser.add_argument(
         "--max_saved_checkpoints",
         type=int,
         required=False,
@@ -347,7 +334,6 @@ def parse_args() -> dict[str, Any]:
         attach_text=False,
         shuffle_dataloader=False,
         f16_precision=False,
-        greater_checking=False,
         show_eval_progress=False,
         use_stemmer=False,
         eval_bert_score=False,

@@ -44,8 +44,6 @@ class TrainingArguments:
     max_eval_steps: int = 100
     max_train_steps: int = -1
     gradient_accumulation_steps: int = 2
-    greater_checking: bool = False
-    checked_metric: str = "loss"
     max_saved_checkpoints: int = 2
     show_eval_progress: bool = False
     push_to_hub: bool = True
@@ -62,21 +60,10 @@ def has_length(dataset: Dataset) -> bool:
 def sorted_checkpoints(
     output_dir: str,
     checkpoint_prefix: str,
-    best_checkpoint: Optional[str] = None,
 ) -> list[str]:
-    globbed_checkpoints = [
+    checkpoints = [
         str(path) for path in Path(output_dir).glob(pattern=f"{checkpoint_prefix}*.pt")
     ]
-
-    checkpoints = globbed_checkpoints
-    if (
-        best_checkpoint is not None
-        and str(Path(best_checkpoint)) in globbed_checkpoints
-    ):
-        best_checkpoint_path = str(Path(best_checkpoint))
-        best_checkpoint_index = globbed_checkpoints.index(best_checkpoint_path)
-        globbed_checkpoints.pop(best_checkpoint_index)
-        checkpoints = globbed_checkpoints + [best_checkpoint_path]
 
     return sorted(checkpoints)
 
@@ -94,45 +81,6 @@ def rotate_checkpoints(
     for checkpoint in deleted_checkpoints:
         if Path(checkpoint).exists():
             Path(checkpoint).unlink()
-
-
-def determine_best_metric_value(
-    metric_scores: dict[str, int | float],
-    checked_metric: str,
-    greater_checking: bool,
-    best_metric_value: int | float,
-    output_dir: str,
-    checkpoint_prefix: str,
-    step: int,
-) -> tuple[Optional[float], Optional[str]]:
-    checked_metric = checked_metric.lower()
-
-    if checked_metric not in metric_scores:
-        raise ValueError(
-            f"{checked_metric} not found in metric_scoes, keys availability {', '.join(list(metric_scores.keys()))}"
-        )
-
-    is_new_best_metric = False
-
-    if greater_checking:
-        if metric_scores[checked_metric] > best_metric_value:
-            is_new_best_metric = True
-    else:
-        if metric_scores[checked_metric] < best_metric_value:
-            is_new_best_metric = True
-
-    new_best_metric_value = None
-    best_checkpoint_path = None
-
-    if is_new_best_metric:
-        new_best_metric_value = metric_scores[checked_metric]
-        best_checkpoint_path = get_checkpoint_path(
-            checkpoint_dir=output_dir,
-            model_basename=checkpoint_prefix,
-            step=step,
-        )
-
-    return new_best_metric_value, best_checkpoint_path
 
 
 def get_last_checkpoint(output_dir: str, checkpoint_prefix: str) -> Optional[str]:

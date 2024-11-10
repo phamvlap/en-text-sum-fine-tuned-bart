@@ -201,8 +201,6 @@ def train(config: dict) -> None:
         max_eval_steps=config["max_eval_steps"],
         max_train_steps=config["max_train_steps"],
         gradient_accumulation_steps=config["gradient_accumulation_steps"],
-        greater_checking=config["greater_checking"],
-        checked_metric=config["checked_metric"],
         max_saved_checkpoints=config["max_saved_checkpoints"],
         show_eval_progress=config["show_eval_progress"],
         push_to_hub=config["push_to_hub"],
