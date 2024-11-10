@@ -164,7 +164,7 @@ def split_dataset(config: dict) -> None:
         train_size=config["train_size"],
         val_size=config["val_size"],
         test_size=config["test_size"],
-        shuffle=True,
+        shuffle=config["shuffle"],
     )
 
     data_files_path = config["data_files_path"]

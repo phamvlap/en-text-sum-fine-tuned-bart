@@ -15,6 +15,12 @@ def parse_args() -> dict[str, Any]:
         description="Splitting dataset for summarization task",
     )
     parser.add_argument(
+        "--shuffle",
+        action="store_true",
+        dest="shuffle",
+        help="shuffle dataset before spliting (default: False)",
+    )
+    parser.add_argument(
         "--remove_invalid_text",
         action="store_true",
         dest="remove_invalid_text",
@@ -75,6 +81,7 @@ def parse_args() -> dict[str, Any]:
         help="ratio of test dataset (default: 0.15)",
     )
     parser.set_defaults(
+        shuffle=False,
         remove_invalid_text=False,
         remove_invalid_length=False,
         is_sampling=False,
