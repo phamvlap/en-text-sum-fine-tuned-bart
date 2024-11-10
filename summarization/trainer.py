@@ -16,7 +16,7 @@ from huggingface_hub import HfApi, login
 
 from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken, SETTING_CONFIG_FILE
-from .utils.eval import evaluate
+from .utils.eval import evaluate, create_encoder_mask, create_decoder_mask
 from .utils.metrics import compute_rouge_bert_score
 from .utils.mix import is_torch_cuda_available, make_dir, ensure_exist_path
 from .utils.wb_logger import WandbLogger, VALID_PREFIX_KEY
@@ -138,12 +138,14 @@ class Trainer:
 
                 self.optimizer.zero_grad(set_to_none=True)
 
-                src_attention_mask = (encoder_input != self.pad_token_id).to(
-                    dtype=torch.int32,
-                )
-                tgt_attention_mask = (decoder_input != self.pad_token_id).to(
-                    dtype=torch.int32,
-                )
+                src_attention_mask = create_encoder_mask(
+                    encoder_input=encoder_input,
+                    pad_token_id=self.pad_token_id,
+                ).to(dtype=torch.int64)
+                tgt_attention_mask = create_decoder_mask(
+                    decoder_input=decoder_input,
+                    pad_token_id=self.pad_token_id,
+                ).to(dtype=torch.int64)
 
                 # Forward pass with autocast
                 # Auto cast to float16 in certain parts of the model, while maintaining float32 precision in other parts

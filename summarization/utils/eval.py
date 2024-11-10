@@ -17,10 +17,10 @@ from .meters import AverageMeter
 def create_encoder_mask(encoder_input: Tensor, pad_token_id: int) -> Tensor:
     """
     Args:
-        encoder_input: input tensor, shape `(1, seq_length)`
+        encoder_input: input tensor, shape `(batch_size, seq_length)`
         pad_token_id: id of padding token
     Returns:
-        Tensor: masked tensor, shape `(1, seq_length)`
+        Tensor: masked tensor, shape `(batch_size, seq_length)`
     """
     return (encoder_input != pad_token_id).type_as(encoder_input)
 
@@ -28,10 +28,10 @@ def create_encoder_mask(encoder_input: Tensor, pad_token_id: int) -> Tensor:
 def create_decoder_mask(decoder_input: Tensor, pad_token_id: int) -> Tensor:
     """
     Args:
-        decoder_input: input tensor, shape `(1, seq_length)`
+        decoder_input: input tensor, shape `(batch_size, seq_length)`
         pad_token_id: id of padding token
     Returns:
-        Tensor: masked tensor, shape `(1, seq_length)`
+        Tensor: masked tensor, shape `(batch_size, seq_length)`
     """
     return (decoder_input != pad_token_id).type_as(decoder_input)
 
@@ -61,11 +61,11 @@ def greedy_search_decode(
     eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
-    # input_ids (1, seq_length)
     assert (
         local_rank is not None if use_ddp else True
     ), "local_rank must be not None if use DDP"
 
+    # input_ids (1, seq_length)
     if use_ddp:
         model.to(local_rank)
         input_ids = input_ids.unsqueeze(dim=0).to(local_rank)
@@ -77,7 +77,7 @@ def greedy_search_decode(
     encoder_attention_mask = create_encoder_mask(
         encoder_input=input_ids,
         pad_token_id=pad_token_id,
-    ).to(torch.int32)
+    ).to(torch.int64)
 
     # decoder_input (1, 1)
     decoder_input = torch.empty(1, 1).fill_(value=bos_token_id).type_as(input_ids)
@@ -86,7 +86,7 @@ def greedy_search_decode(
         decoder_attention_mask = create_decoder_mask(
             decoder_input=decoder_input,
             pad_token_id=pad_token_id,
-        ).to(torch.int32)
+        ).to(torch.int64)
 
         # logits (1, decoder_input.size(1), vocab_size)
         logits = model(
@@ -149,11 +149,11 @@ def beam_search_decode(
     eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
     pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
-    # input_ids (1, seq_length)
     assert (
         local_rank is not None if use_ddp else True
     ), "local_rank must be not None if use DDP"
 
+    # input_ids (1, seq_length)
     if use_ddp:
         model.to(local_rank)
         input_ids = input_ids.unsqueeze(dim=0).to(local_rank)
@@ -165,7 +165,7 @@ def beam_search_decode(
     encoder_attention_mask = create_encoder_mask(
         encoder_input=input_ids,
         pad_token_id=pad_token_id,
-    ).to(torch.int32)
+    ).to(torch.int64)
 
     # Initialize decoder input with only <s> token (1, 1)
     decoder_input = torch.empty(1, 1).fill_(value=bos_token_id).type_as(input_ids)
@@ -192,7 +192,7 @@ def beam_search_decode(
             decoder_attention_mask = create_decoder_mask(
                 decoder_input=cand,
                 pad_token_id=pad_token_id,
-            ).to(torch.int32)
+            ).to(torch.int64)
 
             # logits (1, cand.size(1), vocab_size)
             logits = model(
@@ -222,16 +222,17 @@ def beam_search_decode(
                 next_token = next_token.type_as(input_ids)
                 next_token_score = topk_probs[0][i].item()
 
-                # cand (1, cand.size(1))
+                # cand (1, cand.size(1) + 1)
                 new_candidate = torch.cat([cand, next_token], dim=1)
 
                 new_candidates.append((new_candidate, score + next_token_score))
 
+        # Sort candidates by score in descending and keep beam_size candidates with best score
         candidates = sorted(new_candidates, key=lambda x: x[1], reverse=True)
         candidates = candidates[:beam_size]
 
     candidates = candidates[:topk]
-    outputs = [cand[0].squeeze(dim=0) for cand, _ in candidates]
+    outputs = [cand.squeeze(dim=0) for cand, _ in candidates]
 
     return outputs
 
@@ -284,9 +285,9 @@ def evaluate(
         print("Evaluating model...")
 
     for batch in val_iterator:
-        # encoder_input (batch_size, seq_length)
-        # decoder_input (batch_size, seq_length)
-        # labels (batch_size, seq_length)
+        # encoder_input (batch_size, src_seq_length)
+        # decoder_input (batch_size, tgt_seq_length)
+        # labels (batch_size, tgt_seq_length)
         if use_ddp:
             encoder_input = batch["encoder_input"].to(local_rank)
             decoder_input = batch["decoder_input"].to(local_rank)
@@ -296,16 +297,18 @@ def evaluate(
             decoder_input = batch["decoder_input"].to(device=device)
             labels = batch["labels"].to(device=device)
 
+        # encoder_attention_mask (batch_size, src_seq_length)
+        # decoder_attention_mask (batch_size, tgt_seq_length)
         encoder_attention_mask = create_encoder_mask(
             encoder_input=encoder_input,
             pad_token_id=pad_token_id,
-        ).to(torch.int32)
+        ).to(torch.int64)
         decoder_attention_mask = create_decoder_mask(
             decoder_input=decoder_input,
             pad_token_id=pad_token_id,
-        ).to(torch.int32)
+        ).to(torch.int64)
 
-        # logits (batch_size, seq_length, vocab_size)
+        # logits (batch_size, tgt_seq_length, vocab_size)
         logits = model(
             encoder_input_ids=encoder_input,
             encoder_attn_mask=encoder_attention_mask,

@@ -54,7 +54,7 @@ class Summarizer:
                     self.tokenizer.decode(
                         cand,
                         skip_special_tokens=True,
-                        clean_up_tokenization_spaces=True,
+                        clean_up_tokenization_spaces=False,
                     )
                     for cand in cand_list
                 ]
@@ -75,7 +75,7 @@ class Summarizer:
                 pred_text = self.tokenizer.decode(
                     pred_tokens,
                     skip_special_tokens=True,
-                    clean_up_tokenization_spaces=True,
+                    clean_up_tokenization_spaces=False,
                 )
                 pred_text = self._postprocess_output_text(text=pred_text)
                 return pred_text
@@ -99,7 +99,7 @@ class Summarizer:
                 Tensor(input_tokens),
                 Tensor([self.eos_token_id]),
             ]
-        ).type(torch.int32)
+        ).type(torch.int64)
         return encoder_input
 
     def _postprocess_output_text(self, text: str) -> str:

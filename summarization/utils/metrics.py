@@ -80,7 +80,7 @@ class BertScorer:
             lang=self.lang,
         )
 
-        summary_scores: dict[str, np.aray] = {}
+        summary_scores: dict[str, np.array] = {}
         result: dict[str, np.float32 | float] = {}
 
         for key in ["precision", "recall", "f1"]:
@@ -146,8 +146,8 @@ def compute_rouge_bert_score(
     world_size: Optional[int] = None,
     max_steps: Optional[int] = None,
 ) -> dict[str, float]:
-    pred_text_list = []
-    target_text_list = []
+    pred_text_list: list[str] = []
+    target_text_list: list[str] = []
 
     # Set model to evaluation mode
     model.eval()
@@ -243,17 +243,17 @@ def compute_rouge_bert_score(
         src_text = tokenizer.decode(
             src_tokens,
             skip_special_tokens=True,
-            clean_up_tokenization_spaces=True,
+            clean_up_tokenization_spaces=False,
         )
         tgt_text = tokenizer.decode(
             tgt_tokens,
             skip_special_tokens=True,
-            clean_up_tokenization_spaces=True,
+            clean_up_tokenization_spaces=False,
         )
         pred_text = tokenizer.decode(
             pred_tokens,
             skip_special_tokens=True,
-            clean_up_tokenization_spaces=True,
+            clean_up_tokenization_spaces=False,
         )
 
         pred_text_list.append(pred_text)
@@ -266,11 +266,11 @@ def compute_rouge_bert_score(
                 cand_text = tokenizer.decode(
                     cand,
                     skip_special_tokens=True,
-                    clean_up_tokenization_spaces=True,
+                    clean_up_tokenization_spaces=False,
                 )
                 cand_text_list.append(cand_text)
 
-        if log_examples and idx % logging_steps == 0:
+        if log_examples and (idx + 1) % logging_steps == 0:
             rouge_score = rouge_scorer.compute(preds=pred_text, target=tgt_text)
             bert_score = None
             if bert_scorer is not None:

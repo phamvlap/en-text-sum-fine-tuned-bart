@@ -81,9 +81,8 @@ class SummarizationDataset(Dataset):
                 ]
             )
 
-        src_tokens = src_tokens.type(torch.int32)
-        tgt_tokens = tgt_tokens.type(torch.int32)
-        # labels must be of type long (torch.int64) for CrossEntropyLoss
+        src_tokens = src_tokens.type(torch.int64)
+        tgt_tokens = tgt_tokens.type(torch.int64)
         labels = labels.type(torch.int64)
 
         assert src_tokens.size(-1) <= self.src_seq_length
