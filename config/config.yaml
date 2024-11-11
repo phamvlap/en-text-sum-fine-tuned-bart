@@ -86,7 +86,6 @@ max_grad_norm: 1.0
 f16_precision: True
 max_eval_steps: 100
 max_train_steps: -1
-gradient_accumulation_steps: 4
 max_saved_checkpoints: 3
 show_eval_progress: False
 resume_from_checkpoint: True

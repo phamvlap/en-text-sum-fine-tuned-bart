@@ -160,43 +160,35 @@ class Trainer:
                 if self.scaler is not None:
                     # Backpropagation
                     self.scaler.scale(loss).backward()
+                    # Clip gradients norm
+                    if (
+                        self.args.max_grad_norm is not None
+                        and self.args.max_grad_norm > 0
+                    ):
+                        self.scaler.unscale_(self.optimizer)
+                        torch.nn.utils.clip_grad_norm_(
+                            parameters=self.model.parameters(),
+                            max_norm=self.args.max_grad_norm,
+                        )
+                    # Update weights and learning rate
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
                 else:
                     loss.backward()
+                    self.optimizer.step()
 
-                if ((idx + 1) % self.args.gradient_accumulation_steps == 0) or (
-                    idx + 1 == len(train_dataloader)
-                ):
-                    if self.scaler is not None:
-                        # Clip gradients norm
-                        if (
-                            self.args.max_grad_norm is not None
-                            and self.args.max_grad_norm > 0
-                        ):
-                            self.scaler.unscale_(self.optimizer)
-                            torch.nn.utils.clip_grad_norm_(
-                                parameters=self.model.parameters(),
-                                max_norm=self.args.max_grad_norm,
-                            )
-                        # Update weights and learning rate
-                        self.scaler.step(self.optimizer)
-                        self.scaler.update()
-                    else:
-                        self.optimizer.step()
+                logs = {
+                    "loss": loss.item(),
+                }
+                if self.lr_scheduler is not None:
+                    for lr_idx, lr_value in enumerate(self.lr_scheduler.get_last_lr()):
+                        logs[f"learning_rate_{lr_idx}"] = lr_value
+                    self.lr_scheduler.step()
 
-                    logs = {
-                        "loss": loss.item(),
-                    }
-                    if self.lr_scheduler is not None:
-                        for lr_idx, lr_value in enumerate(
-                            self.lr_scheduler.get_last_lr()
-                        ):
-                            logs[f"learning_rate_{lr_idx}"] = lr_value
-                        self.lr_scheduler.step()
+                if self.wb_logger is not None:
+                    self.wb_logger.log(logs=logs, step=global_step + 1)
 
-                    if self.wb_logger is not None:
-                        self.wb_logger.log(logs=logs, step=global_step + 1)
-
-                    batch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
+                batch_iterator.set_postfix({"loss": f"{loss.item():.4f}"})
 
                 if self.training_loss is not None:
                     self.training_loss.update(value=loss.item())

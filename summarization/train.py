@@ -204,7 +204,6 @@ def train(config: dict) -> None:
         world_size=config["world_size"] if config["use_ddp"] else None,
         max_eval_steps=config["max_eval_steps"],
         max_train_steps=config["max_train_steps"],
-        gradient_accumulation_steps=config["gradient_accumulation_steps"],
         max_saved_checkpoints=config["max_saved_checkpoints"],
         bart_tokenizer_dir=config["tokenizer_bart_dir"],
         show_eval_progress=config["show_eval_progress"],
