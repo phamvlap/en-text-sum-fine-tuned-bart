@@ -34,6 +34,13 @@ def parse_args() -> dict[str, Any]:
         help="maximum length of output sequence (default: 256)",
     )
     parser.add_argument(
+        "--max_eval_steps",
+        type=int,
+        required=False,
+        default=100,
+        help="maximum examples for each evaluating iterator (default: 100)",
+    )
+    parser.add_argument(
         "--show_eval_progress",
         action="store_true",
         dest="show_eval_progress",
@@ -53,9 +60,10 @@ def parse_args() -> dict[str, Any]:
     )
     parser.add_argument(
         "--accumulate",
-        action="store_true",
-        dest="accumulate",
-        help="accumulate when compute Bert score (default: False)",
+        type=str,
+        required=False,
+        default="avg",
+        help="accumulate type for training (best, avg) (default: avg)",
     )
     parser.add_argument(
         "--rescale",
@@ -100,7 +108,6 @@ def parse_args() -> dict[str, Any]:
     parser.set_defaults(
         show_eval_progress=False,
         eval_bert_score=False,
-        accumulate=False,
         use_stemmer=False,
         rescale=False,
         log_examples=False,
