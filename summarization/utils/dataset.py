@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 
 from transformers import BartTokenizer
+from typing import Any
 
 from bart.constants import SentenceContractions
 
@@ -150,6 +151,49 @@ def remove_rows_by_invalid_seq_length(
         )
 
     return df[is_valid_rows].reset_index(drop=True)
+
+
+def truncate_exceeded_length(
+    df: pd.DataFrame,
+    tokenizer: BartTokenizer,
+    config: dict[str, Any],
+    seq_length: int,
+) -> pd.DataFrame:
+    source_field = config["text_src"]
+    target_field = config["text_tgt"]
+
+    if seq_length < 0:
+        raise ValueError(
+            f"seq_length must be greater than or equal to zero, got src_seq_length={seq_length}."
+        )
+    if any([feature not in df.columns for feature in [source_field, target_field]]):
+        raise ValueError(f"{source_field} or {target_field} not found in dataset.")
+
+    for idx in range(len(df)):
+        row = df.iloc[idx]
+        source_text = row[source_field]
+        target_text = row[target_field]
+
+        source_tokens = tokenizer.encode(source_text)
+        target_tokens = tokenizer.encode(target_text)
+
+        if len(source_tokens) > seq_length:
+            source_tokens = source_tokens[:seq_length]
+            df.loc[idx, source_field] = tokenizer.decode(
+                source_tokens,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=False,
+            )
+
+        if len(target_tokens) > seq_length:
+            target_tokens = target_tokens[:seq_length]
+            df.loc[idx, target_field] = tokenizer.decode(
+                target_tokens,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=False,
+            )
+
+    return df
 
 
 def retain_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:

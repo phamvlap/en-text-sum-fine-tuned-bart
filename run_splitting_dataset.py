@@ -21,16 +21,16 @@ def parse_args() -> dict[str, Any]:
         help="shuffle dataset before spliting (default: False)",
     )
     parser.add_argument(
-        "--remove_invalid_text",
-        action="store_true",
-        dest="remove_invalid_text",
-        help="remove text with special characters (only keep text contains ['.', ',', '-']) (default: False)",
-    )
-    parser.add_argument(
         "--remove_invalid_length",
         action="store_true",
         dest="remove_invalid_length",
         help="remove rows with invalid length text (default: False)",
+    )
+    parser.add_argument(
+        "--truncate_exceeded_length",
+        action="store_true",
+        dest="truncate_exceeded_length",
+        help="truncate length of sentences in row if exceeded length (default: False)",
     )
     parser.add_argument(
         "--src_seq_length",
@@ -45,6 +45,13 @@ def parse_args() -> dict[str, Any]:
         required=True,
         default=256,
         help="maximum length of output sequence (default: 256)",
+    )
+    parser.add_argument(
+        "--seq_length",
+        type=int,
+        required=True,
+        default=512,
+        help="maximum length of sequence (default: 512)",
     )
     parser.add_argument(
         "--sampling",
@@ -82,8 +89,8 @@ def parse_args() -> dict[str, Any]:
     )
     parser.set_defaults(
         shuffle=False,
-        remove_invalid_text=False,
         remove_invalid_length=False,
+        truncate_exceeded_length=False,
         is_sampling=False,
     )
 

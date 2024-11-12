@@ -10,7 +10,7 @@ from .utils.dataset import (
     clean_target_feature,
     retain_columns,
     process_features,
-    remove_all_invalid_text,
+    truncate_exceeded_length,
     remove_rows_by_invalid_seq_length,
 )
 from .utils.seed import set_seed
@@ -134,14 +134,6 @@ def split_dataset(config: dict) -> None:
 
     valid_df = df.copy()
 
-    if config["remove_invalid_text"]:
-        features = [config["text_src"], config["text_tgt"]]
-        valid_df = remove_all_invalid_text(
-            df=valid_df,
-            features=features,
-            special_chars=[".", ",", "-"],
-        )
-
     if config["remove_invalid_length"]:
         valid_df = remove_rows_by_invalid_seq_length(
             df=valid_df,
@@ -149,6 +141,13 @@ def split_dataset(config: dict) -> None:
             config=config,
             src_seq_length=config["src_seq_length"],
             tgt_seq_length=config["tgt_seq_length"],
+        )
+    if config["truncate_exceeded_length"]:
+        valid_df = truncate_exceeded_length(
+            df=valid_df,
+            tokenizer=tokenizer,
+            config=config,
+            seq_length=config["seq_length"],
         )
 
     if config["is_sampling"]:

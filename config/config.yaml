@@ -91,6 +91,7 @@ show_eval_progress: False
 resume_from_checkpoint: True
 
 # BART configs
+seq_length: 512
 src_seq_length: 768 # max length of input sequence
 tgt_seq_length: 256 # max length of output sequence
 d_model: 768 # dimension of hidden layers
