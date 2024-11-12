@@ -1,11 +1,11 @@
 from typing import Any
 
-from summarization.preprocess import preprocess
+from summarization.preprocess import prepare_dataset
 from summarization.utils.mix import update_setting_config
 
 
 def main(config: dict):
-    preprocess(config)
+    prepare_dataset(config)
 
 
 def parse_args() -> dict[str, Any]:
@@ -47,22 +47,6 @@ def parse_args() -> dict[str, Any]:
         required=False,
         default="headline",
         help="key of original target text (default: headline)",
-    )
-    parser.add_argument(
-        "--lowercase",
-        action="store_true",
-        dest="lowercase",
-        help="apply to lowercase text (default: False)",
-    )
-    parser.add_argument(
-        "--contractions",
-        action="store_true",
-        dest="contractions",
-        help="apply to contractions text (default: False)",
-    )
-    parser.set_defaults(
-        lowercase=False,
-        contractions=True,
     )
 
     args = parser.parse_args()

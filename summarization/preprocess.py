@@ -3,13 +3,10 @@ import pandas as pd
 from typing import Optional
 from datasets import load_dataset as load_dataset_remote, load_dataset_builder
 
-from bart.constants import DEFAULT_TRAIN_VAL_TEST_RATIO, SentenceContractions
+from bart.constants import DEFAULT_TRAIN_VAL_TEST_RATIO
 from .utils.tokenizer import load_tokenizer
 from .utils.dataset import (
-    clean_source_feature,
-    clean_target_feature,
     retain_columns,
-    process_features,
     truncate_exceeded_length,
     remove_rows_by_invalid_seq_length,
 )
@@ -77,13 +74,12 @@ def train_val_test_split(
     return train_df, val_df, test_df
 
 
-def preprocess(config: dict) -> None:
-    print("Preprocessing data...")
+def prepare_dataset(config: dict) -> None:
+    print("Preparing data...")
     # External data source
     datasource_path = config["datasource_path"]
 
-    raw_df = load_dataset(path=datasource_path)
-    cleaned_df = raw_df.dropna().reset_index(drop=True)
+    df = load_dataset(path=datasource_path)
 
     src_field, tgt_field = config["text_src"], config["text_tgt"]
     original_src_field, original_tgt_field = (
@@ -91,34 +87,18 @@ def preprocess(config: dict) -> None:
         config["original_text_tgt"],
     )
 
-    cleaned_df.loc[:, src_field] = cleaned_df[original_src_field].map(
-        lambda text: clean_source_feature(text)
-    )
-    cleaned_df.loc[:, tgt_field] = cleaned_df[original_tgt_field].map(
-        lambda summary: clean_target_feature(summary)
-    )
+    df.loc[:, src_field] = df[original_src_field].map(lambda text: text)
+    df.loc[:, tgt_field] = df[original_tgt_field].map(lambda summary: summary)
 
     features = [src_field, tgt_field]
-    retained_df = retain_columns(df=cleaned_df, columns=features)
-
-    conditions = []
-    if config["lowercase"]:
-        conditions.append(SentenceContractions.LOWERCASE)
-    if config["contractions"]:
-        conditions.append(SentenceContractions.CONTRACTIONS)
-
-    df = process_features(
-        df=retained_df,
-        features=features,
-        conditions=conditions,
-    )
+    prepared_df = retain_columns(df=df, columns=features)
 
     output_data_file_path = config["data_files_path"]["raw"]
     make_dir(dir_path=config["dataset_dir"])
-    df.to_csv(output_data_file_path, index=False)
+    prepared_df.to_csv(output_data_file_path, index=False)
 
     print("Preprocessing dataset done!")
-    print(f"Shape of dataset: {df.shape}")
+    print(f"Shape of dataset: {prepared_df.shape}")
     print(f"Extracted data saved at {output_data_file_path}")
 
 
