@@ -190,8 +190,6 @@ def train(config: dict) -> None:
         save_every_n_steps=config["save_every_n_steps"],
         beam_size=config["beam_size"],
         topk=config["topk"],
-        eval_bert_score=config["eval_bert_score"],
-        rescale=config["rescale"],
         log_examples=config["log_examples"],
         logging_steps=config["logging_steps"],
         use_stemmer=config["use_stemmer"],

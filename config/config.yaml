@@ -96,15 +96,13 @@ src_seq_length: 768 # max length of input sequence
 tgt_seq_length: 256 # max length of output sequence
 d_model: 768 # dimension of hidden layers
 
-# Rouge score and Bert score configs
+# Rouge score configs
 rouge_keys:
   - rouge1
   - rouge2
   - rougeL
 use_stemmer: True
 accumulate: avg # 'best' | 'avg'
-eval_bert_score: True
-rescale: True
 log_examples: True
 logging_steps: 20
 

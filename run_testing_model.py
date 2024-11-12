@@ -47,12 +47,6 @@ def parse_args() -> dict[str, Any]:
         help="show progress during evaluating (default: False)",
     )
     parser.add_argument(
-        "--eval_bert_score",
-        action="store_true",
-        dest="eval_bert_score",
-        help="evaluate Bert score (default: False)",
-    )
-    parser.add_argument(
         "--use_stemmer",
         action="store_true",
         dest="use_stemmer",
@@ -64,12 +58,6 @@ def parse_args() -> dict[str, Any]:
         required=False,
         default="avg",
         help="accumulate type for training (best, avg) (default: avg)",
-    )
-    parser.add_argument(
-        "--rescale",
-        action="store_true",
-        dest="rescale",
-        help="rescale when compute Bert score (default: False)",
     )
     parser.add_argument(
         "--log_examples",
@@ -107,9 +95,7 @@ def parse_args() -> dict[str, Any]:
     )
     parser.set_defaults(
         show_eval_progress=False,
-        eval_bert_score=False,
         use_stemmer=False,
-        rescale=False,
         log_examples=False,
     )
 

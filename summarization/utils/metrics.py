@@ -1,6 +1,4 @@
 import torch
-import evaluate
-import numpy as np
 
 from torch import Tensor
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -53,49 +51,6 @@ class RougeScorer:
         return self.rouge_scorer(preds, target)
 
 
-class BertScorer:
-    def __init__(
-        self,
-        model_type: str = "roberta-large",
-        lang: str = "en",
-        rescale: bool = True,
-        accumulate: Literal["best", "avg"] = "avg",
-    ) -> None:
-        self.bert_scorer = evaluate.load("bertscore")
-        self.model_type = model_type
-        self.lang = lang
-        self.rescale = rescale
-        self.accumulate = accumulate
-
-    def compute(
-        self,
-        preds: list[str],
-        target: list[str],
-    ) -> dict[str, float]:
-        scores = self.bert_scorer.compute(
-            predictions=preds,
-            references=target,
-            model_type=self.model_type,
-            rescale_with_baseline=self.rescale,
-            lang=self.lang,
-        )
-
-        summary_scores: dict[str, np.array] = {}
-        result: dict[str, np.float32 | float] = {}
-
-        for key in ["precision", "recall", "f1"]:
-            summary_scores[key] = np.array(scores[key], dtype=np.float32)
-
-        if self.accumulate == "best":
-            result = {key: np.max(value) for key, value in summary_scores.items()}
-        elif self.accumulate == "avg":
-            result = {key: np.average(value) for key, value in summary_scores.items()}
-
-        result = {key: float(value) for key, value in result.items()}
-
-        return result
-
-
 def format_rouge_score(pure_rouge_score: dict[str, Tensor]) -> dict[str, float]:
     rouge_score = {}
     for key in pure_rouge_score.keys():
@@ -108,23 +63,8 @@ def format_rouge_score(pure_rouge_score: dict[str, Tensor]) -> dict[str, float]:
     return rouge_score
 
 
-def format_bert_score(pure_bert_score: dict[str, float]) -> dict[str, float]:
-    key_mapping = {
-        "precision": "P-BERT",
-        "recall": "R-BERT",
-        "f1": "F-BERT",
-    }
-    bert_score = {}
-
-    for key in pure_bert_score.keys():
-        mapped_key = key_mapping[key]
-        bert_score[mapped_key] = pure_bert_score[key]
-
-    return bert_score
-
-
 @torch.no_grad()
-def compute_rouge_bert_score(
+def compute_rouge_score(
     model: FineTunedBartForGeneration | DDP,
     dataset: SummarizationDataset,
     tokenizer: BartTokenizer,
@@ -132,8 +72,6 @@ def compute_rouge_bert_score(
     device: torch.device,
     beam_size: Optional[int] = None,
     topk: int = 1,
-    eval_bert_score: bool = True,
-    rescale: bool = True,
     log_examples: bool = True,
     logging_steps: int = 100,
     use_stemmer: bool = True,
@@ -163,13 +101,6 @@ def compute_rouge_bert_score(
         tokenizer_function=tokenizer.tokenize,
         accumulate=accumulate,
     )
-
-    bert_scorer = None
-    if eval_bert_score:
-        bert_scorer = BertScorer(
-            rescale=rescale,
-            accumulate=accumulate,
-        )
 
     if max_steps is None:
         total_iters = len(dataset)
@@ -272,9 +203,6 @@ def compute_rouge_bert_score(
 
         if log_examples and (idx + 1) % logging_steps == 0:
             rouge_score = rouge_scorer.compute(preds=pred_text, target=tgt_text)
-            bert_score = None
-            if bert_scorer is not None:
-                bert_score = bert_scorer.compute(preds=[pred_text], target=[tgt_text])
 
             print(f"EXAMPLE: {idx}")
             print(f"SOURCE TEXT: {src_text}")
@@ -287,33 +215,17 @@ def compute_rouge_bert_score(
                 print(f"PREDICTED TEXT: {pred_text}")
 
             rouge_score = format_rouge_score(rouge_score)
-            if bert_score is not None:
-                bert_score = format_bert_score(bert_score)
 
             print("ROUGE SCORE:")
             for key, value in rouge_score.items():
                 print(f"{key}: {value}")
-            if bert_score is not None:
-                print("BERT SCORE:")
-                for key, value in bert_score.items():
-                    print(f"{key}: {value}")
 
     rouge_score = rouge_scorer.compute(preds=pred_text_list, target=target_text_list)
     rouge_score = format_rouge_score(rouge_score)
-    bert_score = None
-    if bert_scorer is not None:
-        bert_score = bert_scorer.compute(preds=pred_text_list, target=target_text_list)
-        bert_score = format_bert_score(bert_score)
 
-    scores = {
-        **rouge_score,
-    }
-    if bert_score is not None:
-        scores = {
-            **rouge_score,
-            **bert_score,
-        }
     # Set model back to train mode
     model.train()
 
-    return scores
+    return {
+        **rouge_score,
+    }

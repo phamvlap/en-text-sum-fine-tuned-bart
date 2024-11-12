@@ -13,7 +13,7 @@ from .utils.seed import set_seed
 from .utils.mix import make_dir, write_to_json
 from .utils.eval import evaluate
 from .utils.tokenizer import load_tokenizer
-from .utils.metrics import compute_rouge_bert_score
+from .utils.metrics import compute_rouge_score
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -78,7 +78,7 @@ def test(config: dict) -> None:
         use_ddp=False,
         show_eval_progress=config["show_eval_progress"],
     )
-    scores = compute_rouge_bert_score(
+    scores = compute_rouge_score(
         model=model,
         dataset=test_dataloader.dataset,
         tokenizer=tokenizer,
@@ -86,8 +86,6 @@ def test(config: dict) -> None:
         device=device,
         beam_size=config["beam_size"],
         topk=config["topk"],
-        eval_bert_score=config["eval_bert_score"],
-        rescale=config["rescale"],
         log_examples=config["log_examples"],
         logging_steps=config["logging_steps"],
         use_stemmer=config["use_stemmer"],

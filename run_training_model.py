@@ -239,18 +239,6 @@ def parse_args() -> dict[str, Any]:
         help="accumulate type for training (best, avg) (default: best)",
     )
     parser.add_argument(
-        "--eval_bert_score",
-        action="store_true",
-        dest="eval_bert_score",
-        help="evaluate Bert score (default: False)",
-    )
-    parser.add_argument(
-        "--rescale",
-        action="store_true",
-        dest="rescale",
-        help="rescale when compute Bert score (default: False)",
-    )
-    parser.add_argument(
         "--log_examples",
         action="store_true",
         dest="log_examples",
@@ -336,8 +324,6 @@ def parse_args() -> dict[str, Any]:
         f16_precision=False,
         show_eval_progress=False,
         use_stemmer=False,
-        eval_bert_score=False,
-        rescale=False,
         resume_from_checkpoint=False,
         log_examples=False,
         is_logging_wandb=False,

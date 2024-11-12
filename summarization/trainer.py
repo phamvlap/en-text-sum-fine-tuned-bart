@@ -17,7 +17,7 @@ from huggingface_hub import HfApi, login
 from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken, SETTING_CONFIG_FILE
 from .utils.eval import evaluate, create_encoder_mask, create_decoder_mask
-from .utils.metrics import compute_rouge_bert_score
+from .utils.metrics import compute_rouge_score
 from .utils.mix import is_torch_cuda_available, make_dir, ensure_exist_path
 from .utils.wb_logger import WandbLogger, VALID_PREFIX_KEY
 from .trainer_utils import (
@@ -243,7 +243,7 @@ class Trainer:
             local_rank=self.args.local_rank,
             show_eval_progress=self.args.show_eval_progress,
         )
-        scores = compute_rouge_bert_score(
+        scores = compute_rouge_score(
             model=self.model,
             dataset=val_dataloader.dataset,
             tokenizer=self.tokenizer,
@@ -251,8 +251,6 @@ class Trainer:
             device=self.args.device,
             beam_size=self.args.beam_size,
             topk=self.args.topk,
-            eval_bert_score=self.args.eval_bert_score,
-            rescale=self.args.rescale,
             log_examples=self.args.log_examples,
             logging_steps=self.args.logging_steps,
             rouge_keys=self.args.rouge_keys,
