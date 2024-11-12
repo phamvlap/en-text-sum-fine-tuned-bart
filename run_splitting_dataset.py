@@ -33,20 +33,6 @@ def parse_args() -> dict[str, Any]:
         help="truncate length of sentences in row if exceeded length (default: False)",
     )
     parser.add_argument(
-        "--src_seq_length",
-        type=int,
-        required=True,
-        default=768,
-        help="maximum length of input sequence (default: 768)",
-    )
-    parser.add_argument(
-        "--tgt_seq_length",
-        type=int,
-        required=True,
-        default=256,
-        help="maximum length of output sequence (default: 256)",
-    )
-    parser.add_argument(
         "--seq_length",
         type=int,
         required=True,

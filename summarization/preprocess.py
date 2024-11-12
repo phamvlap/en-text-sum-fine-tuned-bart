@@ -8,7 +8,7 @@ from .utils.tokenizer import load_tokenizer
 from .utils.dataset import (
     retain_columns,
     truncate_exceeded_length,
-    remove_rows_by_invalid_seq_length,
+    remove_rows_by_exceeded_length,
 )
 from .utils.seed import set_seed
 from .utils.mix import make_dir, ensure_exist_path
@@ -114,15 +114,20 @@ def split_dataset(config: dict) -> None:
 
     valid_df = df.copy()
 
+    if config["remove_invalid_length"] and config["truncate_exceeded_length"]:
+        print(
+            "Both remove_invalid_length and truncate_exceeded_length are set to True. Only one of them can be set to True. Proceeding with truncate_exceeded_length=True"
+        )
+        config["remove_invalid_length"] = False
+
     if config["remove_invalid_length"]:
-        valid_df = remove_rows_by_invalid_seq_length(
+        valid_df = remove_rows_by_exceeded_length(
             df=valid_df,
             tokenizer=tokenizer,
             config=config,
-            src_seq_length=config["src_seq_length"],
-            tgt_seq_length=config["tgt_seq_length"],
+            seq_length=config["seq_length"],
         )
-    if config["truncate_exceeded_length"]:
+    elif config["truncate_exceeded_length"]:
         valid_df = truncate_exceeded_length(
             df=valid_df,
             tokenizer=tokenizer,
