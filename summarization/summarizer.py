@@ -1,13 +1,16 @@
 import torch
 
 from torch import Tensor
-from transformers import BartTokenizer
-from typing import Any
+from transformers import BartTokenizer, PretrainedConfig
+from typing import Optional
+from pathlib import Path
 
-from bart.model import FineTunedBartForGeneration
+from bart.model import FineTunedBartForGeneration, ModelArguments, build_bart_model
 from bart.constants import SpecialToken
+from .utils.tokenizer import load_tokenizer
 from .utils.dataset import process_en_text
 from .utils.eval import greedy_search_decode, beam_search_decode
+from .utils.mix import is_torch_cuda_available
 
 
 class Summarizer:
@@ -16,12 +19,10 @@ class Summarizer:
         model: FineTunedBartForGeneration,
         tokenizer: BartTokenizer,
         device: torch.device,
-        config: dict[str, Any],
     ) -> None:
         self.model = model
         self.tokenizer = tokenizer
         self.device = device
-        self.config = config
 
         self.bos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
         self.eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
@@ -34,20 +35,22 @@ class Summarizer:
         text: str,
         max_pred_seq_length: int = 100,
         nums: int = 1,
+        beam_size: Optional[int] = None,
     ) -> str | list[str]:
         input_text = self._preprocess_input_text(text=text)
         encoder_input = self._encode_input_text(text=input_text)
 
         with torch.no_grad():
-            if self.config["beam_size"] is not None and self.config["beam_size"] > 0:
+            if beam_size is not None and beam_size > 0:
                 cand_list = beam_search_decode(
                     model=self.model,
-                    beam_size=self.config["beam_size"],
+                    beam_size=beam_size,
                     input_ids=encoder_input,
                     tokenizer=self.tokenizer,
                     seq_length=max_pred_seq_length,
                     device=self.device,
                     topk=nums,
+                    use_ddp=False,
                 )
                 cand_list = [cand.detach().cpu().numpy() for cand in cand_list]
                 cand_text_list = [
@@ -70,6 +73,7 @@ class Summarizer:
                     tokenizer=self.tokenizer,
                     seq_length=max_pred_seq_length,
                     device=self.device,
+                    use_ddp=False,
                 )
                 pred_tokens = pred_tokens.detach().cpu().numpy()
                 pred_text = self.tokenizer.decode(
@@ -101,3 +105,47 @@ class Summarizer:
         output_text = output_text.strip()
 
         return output_text
+
+
+def build_summarizer(model_path: str, tokenizer_path: str) -> Summarizer:
+    device = torch.device("cuda" if is_torch_cuda_available() else "cpu")
+
+    print("Loading tokenizer...")
+    tokenizer = load_tokenizer(bart_tokenizer_dir=tokenizer_path)
+
+    print(f"Loading model {model_path}...")
+
+    if not Path(model_path).exists():
+        raise FileNotFoundError(f"Model path {model_path} not exists.")
+
+    torch.serialization.add_safe_globals([PretrainedConfig])
+    checkpoint_states = torch.load(
+        model_path,
+        weights_only=True,
+        map_location=device,
+    )
+
+    required_keys = [
+        "model_state_dict",
+        "config",
+    ]
+    for key in required_keys:
+        if key not in checkpoint_states.keys():
+            raise ValueError(f"Missing key {key} in checkpoint states.")
+
+    print("Building model...")
+    bart_model_config = checkpoint_states["config"]
+    model_name = f"facebook/{bart_model_config._name_or_path}"
+    model_args = ModelArguments(model_name_or_path=model_name)
+    model = build_bart_model(model_args=model_args, config=bart_model_config)
+    model.load_state_dict(checkpoint_states["model_state_dict"])
+    model.to(device=device)
+
+    print("Building summarizer...")
+    summarizer = Summarizer(
+        model=model,
+        tokenizer=tokenizer,
+        device=device,
+    )
+
+    return summarizer
