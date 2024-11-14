@@ -5,7 +5,7 @@ from transformers import BartTokenizer
 from typing import Any
 
 from bart.model import FineTunedBartForGeneration
-from bart.constants import SpecialToken, SentenceContractions
+from bart.constants import SpecialToken
 from .utils.dataset import process_en_text
 from .utils.eval import greedy_search_decode, beam_search_decode
 
@@ -81,14 +81,7 @@ class Summarizer:
                 return pred_text
 
     def _preprocess_input_text(self, text: str) -> str:
-        conditions = []
-
-        if self.config["lowercase"]:
-            conditions.append(SentenceContractions.LOWERCASE)
-        if self.config["contractions"]:
-            conditions.append(SentenceContractions.CONTRACTIONS)
-
-        text = process_en_text(text=text, conditions=conditions)
+        text = process_en_text(text=text)
         return text
 
     def _encode_input_text(self, text: str) -> Tensor:
