@@ -6,6 +6,10 @@ from transformers import BartTokenizer
 from typing import Any
 
 
+def remove_special_chars(text: str) -> str:
+    return text.replace("\xa0", " ")
+
+
 def remove_urls(text: str) -> str:
     return re.sub(r"http[s]?:\/\/\S+|www\.\S+", "", text, flags=re.MULTILINE)
 
@@ -15,8 +19,8 @@ def remove_html_tags(text: str) -> str:
 
 
 def process_punctuations(text: str) -> str:
-    text = re.sub(r"[^a-zA-Z0-9\s\.,-]", " ", text)
-    text = re.sub(r"([\.,-])", r" \1 ", text)
+    text = re.sub(r"[^a-zA-Z0-9\s\.,]", " ", text)
+    text = re.sub(r"([\.,])", r" \1 ", text)
     text = re.sub(r"\s{2,}", " ", text)
     return text.strip()
 
@@ -28,6 +32,7 @@ def process_en_text(text: str) -> str:
     text = remove_urls(text)
     text = remove_html_tags(text)
     text = process_punctuations(text)
+    text = remove_special_chars(text)
 
     return text
 

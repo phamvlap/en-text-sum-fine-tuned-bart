@@ -97,7 +97,7 @@ def prepare_dataset(config: dict) -> None:
     make_dir(dir_path=config["dataset_dir"])
     prepared_df.to_csv(output_data_file_path, index=False)
 
-    print("Preprocessing dataset done!")
+    print("Preparing dataset done!")
     print(f"Shape of dataset: {prepared_df.shape}")
     print(f"Extracted data saved at {output_data_file_path}")
 
