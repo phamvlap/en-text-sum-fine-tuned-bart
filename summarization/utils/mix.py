@@ -1,3 +1,4 @@
+import os
 import yaml
 import json
 import types
@@ -146,3 +147,9 @@ def ensure_exist_path(path: str | Path) -> bool:
     if not Path(path).exists():
         return False
     return True
+
+
+def is_empty_dir(dir_path: str) -> bool:
+    if os.path.isdir(dir_path):
+        return not os.listdir(dir_path)
+    return False

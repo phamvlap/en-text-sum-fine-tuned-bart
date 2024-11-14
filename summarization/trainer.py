@@ -18,7 +18,12 @@ from bart.model import FineTunedBartForGeneration
 from bart.constants import SpecialToken, SETTING_CONFIG_FILE
 from .utils.eval import evaluate, create_encoder_mask, create_decoder_mask
 from .utils.metrics import compute_rouge_score
-from .utils.mix import is_torch_cuda_available, make_dir, ensure_exist_path
+from .utils.mix import (
+    is_torch_cuda_available,
+    make_dir,
+    ensure_exist_path,
+    is_empty_dir,
+)
 from .utils.wb_logger import WandbLogger, VALID_PREFIX_KEY
 from .trainer_utils import (
     TrainingArguments,
@@ -61,6 +66,7 @@ class Trainer:
         self.wb_logger = wb_logger
         self.hf_user = os.environ.get("HUGGINGFACE_USERNAME", None)
         self.hf_token = os.environ.get("HUGGINGFACE_TOKEN", None)
+        self.is_pushed_config = False
 
         # Automatic Mixed Precision
         # GradScaler: scales the loss and optimizer step
@@ -352,38 +358,40 @@ class Trainer:
                 private=True,
             )
 
-        # Save config and tokenizer files
-        tmp_dir = "archieved_stuff"
+        if not self.is_pushed_config:
+            # Save config and tokenizer files
+            tmp_dir = "archieved_stuff"
 
-        if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir)
+            if os.path.exists(tmp_dir):
+                shutil.rmtree(tmp_dir)
 
-        if ensure_exist_path(self.args.bart_tokenizer_dir) and ensure_exist_path(
-            SETTING_CONFIG_FILE
+            if ensure_exist_path(self.args.bart_tokenizer_dir) and ensure_exist_path(
+                SETTING_CONFIG_FILE
+            ):
+                shutil.copytree(self.args.bart_tokenizer_dir, tmp_dir)
+                shutil.copy2(SETTING_CONFIG_FILE, tmp_dir)
+
+                # Upload config and tokenizer files to hub
+                if ensure_exist_path(tmp_dir):
+                    hf_api.upload_folder(
+                        repo_id=hub_repo_id,
+                        folder_path=tmp_dir,
+                        commit_message="Add config and tokenizer files",
+                    )
+                    self.is_pushed_config = True
+
+            if os.path.exists(tmp_dir):
+                shutil.rmtree(tmp_dir)
+
+        # Update uploading model to hub
+        if ensure_exist_path(self.args.checkpoint_dir) and not is_empty_dir(
+            self.args.checkpoint_dir
         ):
-            shutil.copytree(self.args.bart_tokenizer_dir, tmp_dir)
-            shutil.copy2(SETTING_CONFIG_FILE, tmp_dir)
-
-            # Upload config and tokenizer files to hub
-            if step == self.args.save_every_n_steps and ensure_exist_path(tmp_dir):
-                hf_api.upload_folder(
-                    repo_id=hub_repo_id,
-                    folder_path=tmp_dir,
-                    commit_message="Add config and tokenizer files",
-                )
-
-        if os.path.exists(tmp_dir):
-            shutil.rmtree(tmp_dir)
-
-        # Upload model to hub
-        checkpoint_path = self._get_checkpoint_path(step=step)
-        if ensure_exist_path(checkpoint_path):
-            checkpoint_name = checkpoint_path.split("/")[-1]
-            hf_api.upload_file(
-                path_or_fileobj=checkpoint_path,
+            hf_api.upload_folder(
                 repo_id=hub_repo_id,
-                commit_message=f"Upload model checkpoint at step {step}",
-                path_in_repo=f"models/{checkpoint_name}",
+                folder_path=self.args.checkpoint_dir,
+                commit_message=f"Update uploading checkpoint at step {step}",
+                path_in_repo="models",
             )
 
         print(f"Pushed to {repo_url}")
