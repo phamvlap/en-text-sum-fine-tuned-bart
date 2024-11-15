@@ -7,7 +7,7 @@ from transformers import BartTokenizer
 from typing import Literal, Callable, Optional, List, Tuple
 from tqdm import tqdm
 
-from bart.model import FineTunedBartForGeneration
+from bart.model import FineTunedBartForConditionalGeneration
 from bart.constants import RougeKey
 from .eval import greedy_search_decode, beam_search_decode
 from ..summarization_dataset import SummarizationDataset
@@ -65,7 +65,7 @@ def format_rouge_score(pure_rouge_score: dict[str, Tensor]) -> dict[str, float]:
 
 @torch.no_grad()
 def compute_rouge_score(
-    model: FineTunedBartForGeneration | DDP,
+    model: FineTunedBartForConditionalGeneration | DDP,
     dataset: SummarizationDataset,
     tokenizer: BartTokenizer,
     seq_length: int,

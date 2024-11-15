@@ -1,55 +1,78 @@
 import torch.nn as nn
 
 from torch import Tensor
-from transformers import BartForConditionalGeneration, PretrainedConfig
-from typing import Literal, Optional
+from transformers import BartForConditionalGeneration, PretrainedConfig, BartConfig
+from typing import Optional
 from dataclasses import dataclass
 
 PRE_TRAINED_BART_MODELS = ["facebook/bart-base"]
 
 
 @dataclass
-class ModelArguments:
-    model_name_or_path: Literal["facebook/bart-base"]
-    config_name_or_path: Optional[Literal["facebook/bart-base"]] = None
+class FineTunedBartForConditionalGenerationConfig:
+    vocab_size: int = 50265
+    d_model: int = 768
+    encoder_layers: int = 6
+    decoder_layers: int = 6
+    encoder_attention_heads: int = 8
+    decoder_attention_heads: int = 8
+    encoder_ffn_dim: int = 3072
+    decoder_ffn_dim: int = 3072
+    activation_function: str = "gelu"
+    dropout: float = 0.1
+    attention_dropout: float = 0.1
+    activation_dropout: float = 0.1
+    classifier_dropout: float = 0.1
+    max_position_embeddings: int = 512
+    init_std: float = 0.02
+    encoder_layerdrop: float = 0.1
+    decoder_layerdrop: float = 0.1
+    scale_embedding: bool = True
+    num_beams: int = 4
 
 
-class FineTunedBartForGeneration(nn.Module):
+class FineTunedBartForConditionalGeneration(nn.Module):
     def __init__(
         self,
-        model_args: ModelArguments,
-        config: Optional[PretrainedConfig] = None,
+        model_name_or_path: str = "facebook/bart-base",
+        config: Optional[FineTunedBartForConditionalGenerationConfig] = None,
     ) -> None:
         """
         Args:
-            model_args: ModelArguments
-            config: PretrainedConfig optional
+            model_name_or_path: model name, default: "facebook/bart-base"
+            config: FineTunedBartForConditionalGenerationConfig optional
         """
         super().__init__()
-        if model_args.model_name_or_path not in PRE_TRAINED_BART_MODELS:
+        if model_name_or_path not in PRE_TRAINED_BART_MODELS:
             raise ValueError(
-                f"Supported models: {', '.join(PRE_TRAINED_BART_MODELS)}, got {model_args.model_name_or_path}"
+                f"Supported models: {', '.join(PRE_TRAINED_BART_MODELS)}, got {model_name_or_path}"
             )
-        if config is None:
-            if (
-                model_args.config_name_or_path is not None
-                and model_args.config_name_or_path not in PRE_TRAINED_BART_MODELS
-            ):
-                raise ValueError(
-                    f"Supported model configs: {', '.join(PRE_TRAINED_BART_MODELS)}, got {model_args.config_name_or_path}"
-                )
 
-            if model_args.config_name_or_path is None:
-                model_args.config_name_or_path = model_args.model_name_or_path
+        self.config = BartConfig.from_pretrained(model_name_or_path)
 
-            self.config = PretrainedConfig.from_pretrained(
-                model_args.config_name_or_path
-            )
-        else:
-            self.config = config
+        if config is not None:
+            self.config.vocab_size = config.vocab_size
+            self.config.d_model = config.d_model
+            self.config.encoder_layers = config.encoder_layers
+            self.config.decoder_layers = config.decoder_layers
+            self.config.encoder_attention_heads = config.encoder_attention_heads
+            self.config.decoder_attention_heads = config.decoder_attention_heads
+            self.config.encoder_ffn_dim = config.encoder_ffn_dim
+            self.config.decoder_ffn_dim = config.decoder_ffn_dim
+            self.config.activation_function = config.activation_function
+            self.config.dropout = config.dropout
+            self.config.attention_dropout = config.attention_dropout
+            self.config.activation_dropout = config.activation_dropout
+            self.config.classifier_dropout = config.classifier_dropout
+            self.config.max_position_embeddings = config.max_position_embeddings
+            self.config.init_std = config.init_std
+            self.config.encoder_layerdrop = config.encoder_layerdrop
+            self.config.decoder_layerdrop = config.decoder_layerdrop
+            self.config.scale_embedding = config.scale_embedding
+            self.config.num_beams = config.num_beams
 
         self.bart_model = BartForConditionalGeneration.from_pretrained(
-            model_args.model_name_or_path,
+            model_name_or_path,
             config=self.config,
         )
         self.linear_proj = nn.Linear(self.config.d_model, self.config.vocab_size)
@@ -136,9 +159,12 @@ class FineTunedBartForGeneration(nn.Module):
 
 
 def build_bart_model(
-    model_args: ModelArguments,
-    config: Optional[PretrainedConfig] = None,
-) -> FineTunedBartForGeneration:
-    bart_model = FineTunedBartForGeneration(model_args=model_args, config=config)
+    model_name_or_path: str = "facebook/bart-base",
+    config: Optional[FineTunedBartForConditionalGenerationConfig] = None,
+) -> FineTunedBartForConditionalGeneration:
+    bart_model = FineTunedBartForConditionalGeneration(
+        model_name_or_path=model_name_or_path,
+        config=config,
+    )
 
     return bart_model

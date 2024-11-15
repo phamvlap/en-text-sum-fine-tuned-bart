@@ -5,7 +5,10 @@ from transformers import BartTokenizer, PretrainedConfig
 from typing import Optional
 from pathlib import Path
 
-from bart.model import FineTunedBartForGeneration, ModelArguments, build_bart_model
+from bart.model import (
+    FineTunedBartForConditionalGeneration,
+    build_bart_model,
+)
 from bart.constants import SpecialToken
 from .utils.tokenizer import load_tokenizer
 from .utils.dataset import process_en_text
@@ -16,7 +19,7 @@ from .utils.mix import is_torch_cuda_available
 class Summarizer:
     def __init__(
         self,
-        model: FineTunedBartForGeneration,
+        model: FineTunedBartForConditionalGeneration,
         tokenizer: BartTokenizer,
         device: torch.device,
     ) -> None:
@@ -136,8 +139,7 @@ def build_summarizer(model_path: str, tokenizer_path: str) -> Summarizer:
     print("Building model...")
     bart_model_config = checkpoint_states["config"]
     model_name = f"facebook/{bart_model_config._name_or_path}"
-    model_args = ModelArguments(model_name_or_path=model_name)
-    model = build_bart_model(model_args=model_args, config=bart_model_config)
+    model = build_bart_model(model_name_or_path=model_name, config=bart_model_config)
     model.load_state_dict(checkpoint_states["model_state_dict"])
     model.to(device=device)
 

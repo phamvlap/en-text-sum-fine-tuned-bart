@@ -7,7 +7,7 @@ from torch.distributed import init_process_group, destroy_process_group
 from transformers import PretrainedConfig
 from typing import Any
 
-from bart.model import ModelArguments, build_bart_model
+from bart.model import FineTunedBartForConditionalGenerationConfig, build_bart_model
 from bart.constants import SpecialToken, SETTING_CONFIG_FILE
 from .summarization_dataset import get_dataloader
 from .trainer import Trainer
@@ -104,11 +104,34 @@ def train(config: dict) -> None:
     if checkpoint_path is None:
         model_name_or_path = config["model_name_or_path"]
         print_once(config, f"Training model from pre-trained {model_name_or_path}")
-        model_args = ModelArguments(
-            model_name_or_path=model_name_or_path,
-            config_name_or_path=model_name_or_path,
+
+        custom_bart_config = FineTunedBartForConditionalGenerationConfig(
+            vocab_size=tokenizer.vocab_size,
+            d_model=config["d_model"],
+            encoder_layers=config["encoder_layers"],
+            decoder_layers=config["decoder_layers"],
+            encoder_attention_heads=config["encoder_attention_heads"],
+            decoder_attention_heads=config["decoder_attention_heads"],
+            encoder_ffn_dim=config["encoder_ffn_dim"],
+            decoder_ffn_dim=config["decoder_ffn_dim"],
+            activation_function=config["activation_function"],
+            dropout=config["dropout"],
+            attention_dropout=config["attention_dropout"],
+            activation_dropout=config["activation_dropout"],
+            classifier_dropout=config["classifier_dropout"],
+            max_position_embeddings=config["max_position_embeddings"],
+            init_std=config["init_std"],
+            encoder_layerdrop=config["encoder_layerdrop"],
+            decoder_layerdrop=config["decoder_layerdrop"],
+            scale_embedding=config["scale_embedding"],
+            num_beams=config["num_beams"],
         )
-        bart_model = build_bart_model(model_args=model_args)
+
+        bart_model = build_bart_model(
+            model_name_or_path=model_name_or_path,
+            config=custom_bart_config,
+        )
+
         bart_model_config = bart_model.get_config()
         bart_model.to(device=device)
     else:
@@ -134,8 +157,12 @@ def train(config: dict) -> None:
 
         bart_model_config = checkpoint_states["config"]
         model_name = f"facebook/{bart_model_config._name_or_path}"
-        model_args = ModelArguments(model_name_or_path=model_name)
-        bart_model = build_bart_model(model_args=model_args, config=bart_model_config)
+
+        bart_model = build_bart_model(
+            model_name_or_path=model_name,
+            config=bart_model_config,
+        )
+
         bart_model.load_state_dict(checkpoint_states["model_state_dict"])
         bart_model.to(device=device)
 

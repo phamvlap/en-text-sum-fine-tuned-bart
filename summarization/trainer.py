@@ -14,7 +14,7 @@ from typing import Optional, Union
 from dotenv import load_dotenv
 from huggingface_hub import HfApi, login
 
-from bart.model import FineTunedBartForGeneration
+from bart.model import FineTunedBartForConditionalGeneration
 from bart.constants import SpecialToken, SETTING_CONFIG_FILE
 from .utils.eval import evaluate, create_encoder_mask, create_decoder_mask
 from .utils.metrics import compute_rouge_score
@@ -44,7 +44,7 @@ HUGGINGFACE_BASE_URL = "https://huggingface.co"
 class Trainer:
     def __init__(
         self,
-        model: FineTunedBartForGeneration | DDP,
+        model: FineTunedBartForConditionalGeneration | DDP,
         optimizer: optim.Optimizer,
         tokenizer: BartTokenizer,
         criterion: nn.CrossEntropyLoss,
@@ -398,7 +398,7 @@ class Trainer:
 
     @staticmethod
     def get_actual_model(
-        model: Union[nn.Module, FineTunedBartForGeneration, DDP],
+        model: Union[nn.Module, FineTunedBartForConditionalGeneration, DDP],
     ) -> nn.Module:
         unwrapped_model = model
         if isinstance(model, DDP):

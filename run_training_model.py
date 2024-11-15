@@ -13,6 +13,124 @@ def parse_args() -> dict[str, Any]:
 
     parser = argparse.ArgumentParser(description="Train fine-tuned BART model")
     parser.add_argument(
+        "--vocab_size",
+        type=int,
+        required=False,
+        default=50265,
+        help="size of vocabulary (default: 50265)",
+    )
+    parser.add_argument(
+        "--encoder_layers",
+        type=int,
+        required=False,
+        default=6,
+        help="number of encoder layers (default: 6)",
+    )
+    parser.add_argument(
+        "--decoder_layers",
+        type=int,
+        required=False,
+        default=6,
+        help="number of decoder layers (default: 6)",
+    )
+    parser.add_argument(
+        "--encoder_attention_heads",
+        type=int,
+        required=False,
+        default=8,
+        help="number of encoder attention heads (default: 8)",
+    )
+    parser.add_argument(
+        "--decoder_attention_heads",
+        type=int,
+        required=False,
+        default=8,
+        help="number of decoder attention heads (default: 8)",
+    )
+    parser.add_argument(
+        "--encoder_ffn_dim",
+        type=int,
+        required=False,
+        default=3072,
+        help="dimension of feed forward network in encoder (default: 3072)",
+    )
+    parser.add_argument(
+        "--decoder_ffn_dim",
+        type=int,
+        required=False,
+        default=3072,
+        help="dimension of feed forward network in decoder (default: 3072)",
+    )
+    parser.add_argument(
+        "--activation_function",
+        type=str,
+        required=False,
+        default="gelu",
+        help="activation function for model (default: gelu)",
+    )
+    parser.add_argument(
+        "--dropout",
+        type=float,
+        required=False,
+        default=0.1,
+        help="dropout rate for model (default: 0.1)",
+    )
+    parser.add_argument(
+        "--attention_dropout",
+        type=float,
+        required=False,
+        default=0.1,
+        help="attention dropout rate for model (default: 0.1)",
+    )
+    parser.add_argument(
+        "--activation_dropout",
+        type=float,
+        required=False,
+        default=0.1,
+        help="activation dropout rate for model (default: 0.1)",
+    )
+    parser.add_argument(
+        "--classifier_dropout",
+        type=float,
+        required=False,
+        default=0.1,
+        help="classifier dropout rate for model (default: 0.1)",
+    )
+    parser.add_argument(
+        "--max_position_embeddings",
+        type=int,
+        required=False,
+        default=512,
+        help="maximum position embeddings for model (default: 512)",
+    )
+    parser.add_argument(
+        "--encoder_layerdrop",
+        type=float,
+        required=False,
+        default=0.1,
+        help="encoder layer drop rate for model (default: 0.1)",
+    )
+    parser.add_argument(
+        "--decoder_layerdrop",
+        type=float,
+        required=False,
+        default=0.1,
+        help="decoder layer drop rate for model (default: 0.1)",
+    )
+    parser.add_argument(
+        "--scale_embedding",
+        action="store_true",
+        dest="scale_embedding",
+        help="scale embedding for model (default: False)",
+    )
+    parser.add_argument(
+        "--num_beams",
+        type=int,
+        required=False,
+        default=4,
+        help="number of beams for decoding (default: 4)",
+    )
+    parser.add_argument(
         "--checkpoint_dir",
         type=str,
         required=False,
@@ -319,6 +437,7 @@ def parse_args() -> dict[str, Any]:
     )
 
     parser.set_defaults(
+        scale_embedding=False,
         attach_text=False,
         shuffle_dataloader=False,
         f16_precision=False,

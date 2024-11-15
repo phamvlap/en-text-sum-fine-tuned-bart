@@ -1,6 +1,27 @@
 # General configs
 seed: 42
 
+# Fine tune model configs
+vocab_size: 50265
+d_model: 768
+encoder_layers: 6
+decoder_layers: 6
+encoder_attention_heads: 8
+decoder_attention_heads: 8
+encoder_ffn_dim: 3072
+decoder_ffn_dim: 3072
+activation_function: gelu
+dropout: 0.1
+attention_dropout: 0.1
+activation_dropout: 0.1
+classifier_dropout: 0.1
+max_position_embeddings: 512
+init_std: 0.02
+encoder_layerdrop: 0.1
+decoder_layerdrop: 0.1
+scale_embedding: True
+num_beams: 4
+
 # Model configs
 model_name_or_path: "facebook/bart-base"
 
@@ -94,7 +115,6 @@ resume_from_checkpoint: True
 seq_length: 512
 src_seq_length: 768 # max length of input sequence
 tgt_seq_length: 256 # max length of output sequence
-d_model: 768 # dimension of hidden layers
 
 # Rouge score configs
 rouge_keys:

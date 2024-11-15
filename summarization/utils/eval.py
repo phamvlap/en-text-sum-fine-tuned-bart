@@ -9,7 +9,7 @@ from transformers import BartTokenizer
 from typing import Optional
 from tqdm import tqdm
 
-from bart.model import FineTunedBartForGeneration
+from bart.model import FineTunedBartForConditionalGeneration
 from bart.constants import SpecialToken
 from .meters import AverageMeter
 
@@ -37,7 +37,7 @@ def create_decoder_mask(decoder_input: Tensor, pad_token_id: int) -> Tensor:
 
 
 def greedy_search_decode(
-    model: FineTunedBartForGeneration | DDP,
+    model: FineTunedBartForConditionalGeneration | DDP,
     input_ids: Tensor,
     tokenizer: BartTokenizer,
     seq_length: int,
@@ -121,7 +121,7 @@ def length_penalty(length: int, alpha: float = 0.6) -> float:
 
 
 def beam_search_decode(
-    model: FineTunedBartForGeneration | DDP,
+    model: FineTunedBartForConditionalGeneration | DDP,
     beam_size: int,
     input_ids: Tensor,
     tokenizer: BartTokenizer,
@@ -239,7 +239,7 @@ def beam_search_decode(
 
 @torch.no_grad()
 def evaluate(
-    model: FineTunedBartForGeneration | DDP,
+    model: FineTunedBartForConditionalGeneration | DDP,
     val_dataloader: DataLoader,
     tokenizer: BartTokenizer,
     criterion: nn.CrossEntropyLoss,

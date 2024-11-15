@@ -5,7 +5,10 @@ import torch.nn as nn
 
 from transformers import PretrainedConfig
 
-from bart.model import build_bart_model, FineTunedBartForGeneration, ModelArguments
+from bart.model import (
+    build_bart_model,
+    FineTunedBartForConditionalGeneration,
+)
 from bart.constants import SpecialToken
 from .trainer_utils import get_last_checkpoint
 from .summarization_dataset import get_dataloader
@@ -57,9 +60,8 @@ def test(config: dict) -> None:
         raise ValueError("No checkpoint found")
 
     bart_config = checkpoint_states["config"]
-    model_args = ModelArguments(model_name_or_path=config["model_name_or_path"])
-    model: FineTunedBartForGeneration = build_bart_model(
-        model_args=model_args,
+    model: FineTunedBartForConditionalGeneration = build_bart_model(
+        model_name_or_path=config["model_name_or_path"],
         config=bart_config,
     ).to(device=device)
     model.load_state_dict(checkpoint_states["model_state_dict"])
