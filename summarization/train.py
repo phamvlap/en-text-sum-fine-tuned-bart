@@ -8,7 +8,7 @@ from transformers import PretrainedConfig
 from typing import Any
 
 from bart.model import FineTunedBartForConditionalGenerationConfig, build_bart_model
-from bart.constants import SpecialToken, SETTING_CONFIG_FILE
+from bart.constants import SETTING_CONFIG_FILE, IGNORED_INDEX
 from .summarization_dataset import get_dataloader
 from .trainer import Trainer
 from .trainer_utils import TrainingArguments, get_last_checkpoint
@@ -69,7 +69,6 @@ def train(config: dict) -> None:
 
     print_once(config, "Loading tokenizer...")
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
-    pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
 
     print_once(config, "Loading dataloaders...")
     train_dataloader = get_dataloader(
@@ -200,7 +199,7 @@ def train(config: dict) -> None:
 
     # Loss function
     loss_fn = nn.CrossEntropyLoss(
-        ignore_index=pad_token_id,
+        ignore_index=IGNORED_INDEX,
         label_smoothing=config["label_smoothing"],
     ).to(device=device)
 
