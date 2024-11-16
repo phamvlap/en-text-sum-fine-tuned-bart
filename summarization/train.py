@@ -8,7 +8,7 @@ from transformers import PretrainedConfig
 from typing import Any
 
 from bart.model import FineTunedBartForConditionalGenerationConfig, build_bart_model
-from bart.constants import SETTING_CONFIG_FILE, IGNORED_INDEX
+from bart.constants import SETTING_CONFIG_FILE, IGNORED_INDEX, SpecialToken
 from .summarization_dataset import get_dataloader
 from .trainer import Trainer
 from .trainer_utils import TrainingArguments, get_last_checkpoint
@@ -70,6 +70,10 @@ def train(config: dict) -> None:
     print_once(config, "Loading tokenizer...")
     tokenizer = load_tokenizer(bart_tokenizer_dir=config["tokenizer_bart_dir"])
 
+    bos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.BOS)
+    pad_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.PAD)
+    eos_token_id = tokenizer.convert_tokens_to_ids(SpecialToken.EOS)
+
     print_once(config, "Loading dataloaders...")
     train_dataloader = get_dataloader(
         tokenizer=tokenizer,
@@ -124,6 +128,10 @@ def train(config: dict) -> None:
             decoder_layerdrop=config["decoder_layerdrop"],
             scale_embedding=config["scale_embedding"],
             num_beams=config["num_beams"],
+            bos_token_id=bos_token_id,
+            pad_token_id=pad_token_id,
+            eos_token_id=eos_token_id,
+            forced_eos_token_id=eos_token_id,
         )
 
         bart_model = build_bart_model(

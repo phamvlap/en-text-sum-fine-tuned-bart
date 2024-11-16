@@ -14,21 +14,25 @@ class FineTunedBartForConditionalGenerationConfig:
     d_model: int = 768
     encoder_layers: int = 6
     decoder_layers: int = 6
-    encoder_attention_heads: int = 8
-    decoder_attention_heads: int = 8
+    encoder_attention_heads: int = 12
+    decoder_attention_heads: int = 12
     encoder_ffn_dim: int = 3072
     decoder_ffn_dim: int = 3072
     activation_function: str = "gelu"
     dropout: float = 0.1
     attention_dropout: float = 0.1
     activation_dropout: float = 0.1
-    classifier_dropout: float = 0.1
-    max_position_embeddings: int = 512
+    classifier_dropout: float = 0.0
+    max_position_embeddings: int = 1024
     init_std: float = 0.02
-    encoder_layerdrop: float = 0.1
-    decoder_layerdrop: float = 0.1
-    scale_embedding: bool = True
+    encoder_layerdrop: float = 0.0
+    decoder_layerdrop: float = 0.0
+    scale_embedding: bool = False
     num_beams: int = 4
+    bos_token_id: int = 0
+    pad_token_id: int = 1
+    eos_token_id: int = 2
+    forced_eos_token_id: int = 2
 
 
 class FineTunedBartForConditionalGeneration(nn.Module):
@@ -70,6 +74,10 @@ class FineTunedBartForConditionalGeneration(nn.Module):
             self.config.decoder_layerdrop = config.decoder_layerdrop
             self.config.scale_embedding = config.scale_embedding
             self.config.num_beams = config.num_beams
+            self.bos_token_id = config.bos_token_id
+            self.pad_token_id = config.pad_token_id
+            self.eos_token_id = config.eos_token_id
+            self.forced_eos_token_id = config.forced_eos_token_id
 
         self.bart_model = BartForConditionalGeneration.from_pretrained(
             model_name_or_path,
