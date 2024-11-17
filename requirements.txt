@@ -2,3 +2,7 @@ contractions==0.1.73
 datasets==2.21.0
 torchmetrics==1.5.1
 transformers==4.44.2
+python-dotenv==1.0.1
+wandb==0.18.1
+huggingface-hub==0.26.2
+pandas==2.1.4
