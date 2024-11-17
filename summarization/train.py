@@ -4,11 +4,11 @@ import torch.nn as nn
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
-from transformers import PretrainedConfig
+from transformers import BartConfig
 from typing import Any
 
 from bart.model import FineTunedBartForConditionalGenerationConfig, build_bart_model
-from bart.constants import SETTING_CONFIG_FILE, IGNORED_INDEX, SpecialToken
+from bart.constants import SETTING_CONFIG_FILE, SpecialToken
 from .summarization_dataset import get_dataloader
 from .trainer import Trainer
 from .trainer_utils import TrainingArguments, get_last_checkpoint
@@ -144,7 +144,7 @@ def train(config: dict) -> None:
     else:
         print_once(config, f"Loading model from checkpoint {checkpoint_path}")
 
-        torch.serialization.add_safe_globals([PretrainedConfig])
+        torch.serialization.add_safe_globals([BartConfig])
         checkpoint_states = torch.load(
             checkpoint_path,
             weights_only=True,
@@ -207,7 +207,7 @@ def train(config: dict) -> None:
 
     # Loss function
     loss_fn = nn.CrossEntropyLoss(
-        ignore_index=IGNORED_INDEX,
+        ignore_index=pad_token_id,
         label_smoothing=config["label_smoothing"],
     ).to(device=device)
 

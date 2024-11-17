@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
-from transformers import PretrainedConfig
+from transformers import BartConfig
 
 from bart.model import (
     build_bart_model,
@@ -46,7 +46,7 @@ def test(config: dict) -> None:
     )
     if last_checkpoint is not None:
         print(f"Loading from checkpoint {last_checkpoint}")
-        torch.serialization.add_safe_globals([PretrainedConfig])
+        torch.serialization.add_safe_globals([BartConfig])
         checkpoint_states = torch.load(
             last_checkpoint,
             weights_only=True,

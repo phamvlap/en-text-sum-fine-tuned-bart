@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from huggingface_hub import HfApi, login
 
 from bart.model import FineTunedBartForConditionalGeneration
-from bart.constants import SpecialToken, SETTING_CONFIG_FILE, IGNORED_INDEX
+from bart.constants import SpecialToken, SETTING_CONFIG_FILE
 from .utils.eval import evaluate, create_encoder_mask, create_decoder_mask
 from .utils.metrics import compute_rouge_score
 from .utils.mix import (
@@ -130,9 +130,6 @@ class Trainer:
                     encoder_input = batch["encoder_input"].to(self.args.device)
                     decoder_input = batch["decoder_input"].to(self.args.device)
                     labels = batch["labels"].to(self.args.device)
-
-                # Replace pad token id with -100
-                labels[labels == self.pad_token_id] = IGNORED_INDEX
 
                 self.optimizer.zero_grad(set_to_none=True)
 

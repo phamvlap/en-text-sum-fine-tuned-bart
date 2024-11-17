@@ -1,12 +1,11 @@
 DEFAULT_TRAIN_VAL_TEST_RATIO = (0.75, 0.1, 0.15)
 SETTING_CONFIG_FILE = "config/setting_config.yaml"
-IGNORED_INDEX = -100
 
 
 class SpecialToken:
     BOS = "<s>"  # begining of sentence
-    EOS = "</s>"  # end of sentence
     PAD = "<pad>"
+    EOS = "</s>"  # end of sentence
     UNK = "<unk>"
     MASK = "<mask>"
     BYTE_LEVEL_BPE_SUFFIX = "</eow>"  # end of word
