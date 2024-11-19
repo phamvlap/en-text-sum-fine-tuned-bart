@@ -1,7 +1,7 @@
 import torch
 
 from torch import Tensor
-from transformers import BartTokenizer, PretrainedConfig
+from transformers import BartTokenizer, BartConfig
 from typing import Optional
 from pathlib import Path
 
@@ -121,7 +121,7 @@ def build_summarizer(model_path: str, tokenizer_path: str) -> Summarizer:
     if not Path(model_path).exists():
         raise FileNotFoundError(f"Model path {model_path} not exists.")
 
-    torch.serialization.add_safe_globals([PretrainedConfig])
+    torch.serialization.add_safe_globals([BartConfig])
     checkpoint_states = torch.load(
         model_path,
         weights_only=True,
